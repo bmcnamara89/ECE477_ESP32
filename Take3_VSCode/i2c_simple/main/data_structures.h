@@ -19,9 +19,21 @@ struct Gravity {
     float z;
 };
 
+struct Position {
+    float x;
+    float y;
+    float z;
+};
+
 struct DataPoint {
     struct Quaternions quat;
     struct LinearAcceleration linaccel;
     struct Gravity grav;
     double time;
 };
+
+struct DataOut {
+    struct Position pos;
+    struct Quaternions quat;
+    double time;
+}
