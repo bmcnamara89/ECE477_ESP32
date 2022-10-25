@@ -6,6 +6,9 @@
 #include "driver/timer.h"
 #include "data_structures.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 //static const char *TAG = "i2c-example";
 #define I2C_SLAVE_ADDR	0x4A
 #define TIMEOUT_MS		1000
