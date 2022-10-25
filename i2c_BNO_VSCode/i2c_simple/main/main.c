@@ -51,7 +51,7 @@ void app_main() {
 
 	vTaskDelay(DELAY_MS/portTICK_RATE_MS);
 
-	int choice = 2; //0 = none, 1=linaccel, 2=gravity, 3=quaternions
+	int choice = 1; //0 = none, 1=linaccel, 2=gravity, 3=quaternions
 
 	while (1) {
 		if(choice == 3)

@@ -1,3 +1,7 @@
-/i2c_BNO_VSCode/i2c_simple/build/*
-/i2c_BNO_VSCode/i2c_simple/.vscode/*
+/i2c_BNO_VSCode/*
+/i2c_BNO_VSCode/*
+/BNO_VSCode2/*
+/Take3_VSCode/i2c_simple/build/*
+/Take3_VSCode/i2c_simple/.vscode/*
 /.metadata/*
+
