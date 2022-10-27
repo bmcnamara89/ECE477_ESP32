@@ -1,3 +1,6 @@
+#ifndef DATA_STRUCTURES_H
+#define DATA_STRUCTURES_H
+
 #include <math.h>
 
 struct Quaternions {
@@ -32,8 +35,11 @@ struct DataPoint {
     double time;
 };
 
-struct DataOut {
-    struct Position pos;
-    struct Quaternions quat;
-    double time;
-}
+struct DataOut {                // 36 bytes total
+    struct Position pos;        // 12 bytes
+    struct Quaternions quat;    // 16 bytes
+    double time;                // 8 bytes
+};
+
+
+#endif
