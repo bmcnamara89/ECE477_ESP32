@@ -5,6 +5,7 @@
 #include "driver/i2c.h"
 #include "driver/timer.h"
 #include "data_structures.h"
+#include "bluetooth.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -20,6 +21,10 @@ float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
 void setup_BNO_I2C();
 void setup_swing_Timer();
 void printDP(struct DataPoint dp);
+float getMagnitude(float x, float y, float z);
+void printDPS(struct DataPoint *dps, int numDPs);
+void fakeReckoning(struct DataPoint *dps, int numDPs);
+void print_buffer(struct DataOut* data, uint16_t len);
 //void QuaternionCalculations();
 
 
@@ -82,6 +87,9 @@ void app_main() {
     //Timer
     setup_swing_Timer();
 
+    //Bluetooth
+    init_ble();
+
     //Loop Variables
     int gotLinAccel = 0;
     int gotQuaternions = 0;
@@ -94,6 +102,14 @@ void app_main() {
     struct DataPoint dp;
 
     double timerSec;
+
+    //Swing Detection
+    int swingNum = 0;
+    int inSwing = 0;
+    double swingStartTime = 0.0;
+
+    struct DataPoint *dps = NULL;
+    int dpnum = 0;
 
 	while (1) {
         i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
@@ -113,6 +129,16 @@ void app_main() {
             linaccel.x = x;
             linaccel.y = y;
             linaccel.z = z;
+
+            if(inSwing == 0 && getMagnitude(x, y, z) > 9.0) //Start of Swing Detected
+            {
+                inSwing = 1;
+                swingNum++;
+                timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
+                swingStartTime = timerSec;
+                
+                dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
+            }
         }
         else if(rx_data[9] == 0x06) //Gravity
         {
@@ -129,6 +155,7 @@ void app_main() {
             grav.x = x;
             grav.y = y;
             grav.z = z;
+
         }
         else if(rx_data[9] == 0x05) //Quaternion
         {
@@ -159,12 +186,33 @@ void app_main() {
             dp.quat = quat;
             dp.grav = grav;
             dp.linaccel = linaccel;
-            dp = dp; //GET RID OF
+            timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
+            dp.time = timerSec;
+            
             //printDP(dp);
 
-            timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec);            
-            //printf("%.3f\n", timerSec);
+            if(inSwing == 1)
+            {
+                dps[dpnum] = dp;
+                dpnum++;
+                //printf("Swing %d: from %.3f to %.3f of Length %.3f seconds\n", swingNum, swingStartTime, timerSec, timerSec - swingStartTime);
+            }
         }
+        
+        timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec);
+        if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
+        {
+            inSwing = 0;
+
+            fakeReckoning(dps, dpnum);
+
+            //printf("Swing %d:\n", swingNum);
+            //printDPS(dps, dpnum);
+            //deadReckoning(*datapoints); //store in outputdatapoints
+            free(dps);
+            dpnum = 0; 
+        }
+    
 	}
 
 }
@@ -174,4 +222,65 @@ void printDP(struct DataPoint dp)
     printf("Lin Accel: (%.3f, %.3f, %.3f), ", dp.linaccel.x, dp.linaccel.y, dp.linaccel.y);
     printf("Grav: (%.3f, %.3f, %.3f), ", dp.grav.x, dp.grav.y, dp.grav.z);
     printf("Quat: (%.3f, %.3f, %.3f, %.3f)\n", dp.quat.r, dp.quat.i, dp.quat.j, dp.quat.k);
+}
+
+float getMagnitude(float x, float y, float z)
+{
+    return pow(x*x + y*y + z*z, 0.5);
+}
+
+void printDPS(struct DataPoint *dps, int numDPs)
+{   
+    printf("[");
+    for(int i = 0; i < numDPs; i++)
+    {
+        printf("%d:%.4f | ", i+1, dps[i].time);
+    }
+    printf("]\n");
+}
+
+void fakeReckoning(struct DataPoint *dps, int numDPs)
+{ 
+    int tempNum = 10;
+    struct DataOut * outputData;  
+    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * tempNum); //switch tempNUm for numDPs
+
+    struct Position p;
+    p.x = 0.362;
+    p.y = 4.77;
+    p.z = 20.001;
+
+    //switched numDPs to 20
+    //struct DataOut dout;
+    for(int i = 0; i < tempNum; i++)
+    {
+        // dout.pos = p;
+        // dout.quat = dps[i].quat;
+        // dout.time = dps[i].time;
+
+        outputData[i].pos.x = 0.362;
+        outputData[i].pos.y = 4.77;
+        outputData[i].pos.z = 20.001;
+        outputData[i].quat.r = dps[i].quat.r;
+        outputData[i].quat.i = dps[i].quat.i;
+        outputData[i].quat.j = dps[i].quat.j;
+        outputData[i].quat.k = dps[i].quat.k;
+        outputData[i].time = dps[i].time;
+        
+        
+        //outputData[i] = dout;
+    }
+
+    printf("Buffer Filled: %d Data Points\n", tempNum);
+    print_buffer(outputData, tempNum);
+    set_transmit_buffer(outputData, tempNum);
+
+}
+
+void print_buffer(struct DataOut* data, uint16_t len)
+{
+    for (uint16_t i = 0; i < len; i++) 
+    {
+        printf("Position: <%f, %f, %f>    Quaternion: <%f, %f, %f, %f>    Time: %lf\n", data[i].pos.x, data[i].pos.y, data[i].pos.z, data[i].quat.r, data[i].quat.i, data[i].quat.j, data[i].quat.k, data[i].time);
+    }
 }
