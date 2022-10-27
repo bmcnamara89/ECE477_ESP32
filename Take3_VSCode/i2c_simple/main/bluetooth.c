@@ -137,7 +137,7 @@ struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
  * @param data - an array of floats to put in the transmit buffer
  * @param len - the length of the array of floats (number of floats, NOT NUMBER OF BYTES)
  */
-void set_transmit_buffer(DataOut* data, uint16_t len)
+void set_transmit_buffer(struct DataOut* data, uint16_t len)
 {
     // free the past data if any is present
     free (storedData);
@@ -152,7 +152,7 @@ void set_transmit_buffer(DataOut* data, uint16_t len)
         convert_float_using_special_method(storedData, data[i / 36].pos.x, i);
         convert_float_using_special_method(storedData, data[i / 36].pos.y, i + 4);
         convert_float_using_special_method(storedData, data[i / 36].pos.z, i + 8);
-        convert_float_using_special_method(storedData, data[i / 36].quat.real, i + 12);
+        convert_float_using_special_method(storedData, data[i / 36].quat.r, i + 12);
         convert_float_using_special_method(storedData, data[i / 36].quat.i, i + 16);
         convert_float_using_special_method(storedData, data[i / 36].quat.j, i + 20);
         convert_float_using_special_method(storedData, data[i / 36].quat.k, i + 24);

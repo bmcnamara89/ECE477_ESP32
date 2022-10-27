@@ -84,7 +84,7 @@ void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare
 void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
 
 
-void set_transmit_buffer(DataOut* outputData, uint16_t len);
+void set_transmit_buffer(struct DataOut* outputData, uint16_t len);
 
 // helper methods for set_transmit_buffer
 void convert_float_using_special_method(uint8_t* storedData, float dataToConvert, uint16_t index);
