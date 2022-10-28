@@ -15,6 +15,7 @@
 #define TIMEOUT_MS		1000
 #define DELAY_MS		1000
 #define TIMER_DIVIDER   (64)
+#define ACCEL_THRESHOLD 10.0
 
 //Function Declarations
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
@@ -130,7 +131,7 @@ void app_main() {
             linaccel.y = y;
             linaccel.z = z;
 
-            if(inSwing == 0 && getMagnitude(x, y, z) > 9.0) //Start of Swing Detected
+            if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
             {
                 inSwing = 1;
                 swingNum++;
@@ -226,7 +227,7 @@ void printDP(struct DataPoint dp)
 
 float getMagnitude(float x, float y, float z)
 {
-    return pow(x*x + y*y + z*z, 0.5);
+    return abs(pow(x*x + y*y + z*z, 0.5));
 }
 
 void printDPS(struct DataPoint *dps, int numDPs)
