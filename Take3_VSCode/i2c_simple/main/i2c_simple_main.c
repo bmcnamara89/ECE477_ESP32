@@ -6,6 +6,7 @@
 #include "driver/timer.h"
 #include "data_structures.h"
 #include "bluetooth.h"
+//#include "sensor.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -285,10 +286,16 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     for(int i = 0; i < numDPs i++)
     {
         //Call Dead Reckoning on Each Point
+        pointReckoning();
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
     set_transmit_buffer(outputData, numDPs);
+
+}
+
+void pointReckoning()
+{
 
 }
