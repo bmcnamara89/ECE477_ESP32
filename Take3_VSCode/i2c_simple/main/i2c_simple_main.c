@@ -98,8 +98,8 @@ void app_main() {
 
     float x, y, z, r, i, j, k;
     struct Quaternions quat;
-    struct Gravity grav;
-    struct LinearAcceleration linaccel;
+    struct Coordinates grav;
+    struct Coordinates linaccel;
     struct DataPoint dp;
 
     double timerSec;
@@ -246,19 +246,14 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
     struct DataOut * outputData;  
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * tempNum); //switch tempNUm for numDPs
 
-    struct Position p;
+    struct Coordinates p;
     p.x = 0.362;
     p.y = 4.77;
     p.z = 20.001;
 
-    //switched numDPs to 20
-    //struct DataOut dout;
+    //switched numDPs to tempNum for testing
     for(int i = 0; i < tempNum; i++)
     {
-        // dout.pos = p;
-        // dout.quat = dps[i].quat;
-        // dout.time = dps[i].time;
-
         outputData[i].pos.x = 0.362;
         outputData[i].pos.y = 4.77;
         outputData[i].pos.z = 20.001;
@@ -267,9 +262,6 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
         outputData[i].quat.j = dps[i].quat.j;
         outputData[i].quat.k = dps[i].quat.k;
         outputData[i].time = dps[i].time;
-        
-        
-        //outputData[i] = dout;
     }
 
     printf("Buffer Filled: %d Data Points\n", tempNum);
