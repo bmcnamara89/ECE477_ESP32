@@ -16,6 +16,21 @@ struct Coordinates {
     float z;
 };
 
+struct EulerRotations
+{
+    float roll;
+    float pitch;
+    float yaw;
+};
+
+struct RotationMatrix
+{
+    float row1[4];
+    float row2[4];
+    float row3[4];
+    float row4[4];
+};
+
 struct DataPoint {
     struct Quaternions quat;
     struct Coordinates linaccel;
@@ -24,7 +39,7 @@ struct DataPoint {
 };
 
 struct DataOut {                // 36 bytes total
-    struct Coordinates pos;        // 12 bytes
+    struct Coordinates pos;     // 12 bytes
     struct Quaternions quat;    // 16 bytes
     double time;                // 8 bytes
 };

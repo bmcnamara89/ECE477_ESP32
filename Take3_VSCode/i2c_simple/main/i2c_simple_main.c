@@ -26,7 +26,7 @@ float getMagnitude(float x, float y, float z);
 void printDPS(struct DataPoint *dps, int numDPs);
 void fakeReckoning(struct DataPoint *dps, int numDPs);
 void print_buffer(struct DataOut* data, uint16_t len);
-//void QuaternionCalculations();
+void deadReckoning(struct DataPoint *dps, int numDPs);
 
 
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
@@ -206,10 +206,8 @@ void app_main() {
             inSwing = 0;
 
             fakeReckoning(dps, dpnum);
+            //deadReckoning(dps, dpnum); //store in outputdatapoints
 
-            //printf("Swing %d:\n", swingNum);
-            //printDPS(dps, dpnum);
-            //deadReckoning(*datapoints); //store in outputdatapoints
             free(dps);
             dpnum = 0; 
         }
@@ -276,4 +274,21 @@ void print_buffer(struct DataOut* data, uint16_t len)
     {
         printf("Position: <%f, %f, %f>    Quaternion: <%f, %f, %f, %f>    Time: %lf\n", data[i].pos.x, data[i].pos.y, data[i].pos.z, data[i].quat.r, data[i].quat.i, data[i].quat.j, data[i].quat.k, data[i].time);
     }
+}
+
+void deadReckoning(struct DataPoint *dps, int numDPs)
+{ 
+    struct DataOut * outputData;  
+    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); //switch tempNUm for numDPs
+
+    //switched numDPs to tempNum for testing
+    for(int i = 0; i < numDPs i++)
+    {
+        //Call Dead Reckoning on Each Point
+    }
+
+    printf("Buffer Filled: %d Data Points\n", numDPs);
+    print_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs);
+
 }
