@@ -141,6 +141,7 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len)
 {
     // free the past data if any is present
     free (storedData);
+    storedData = NULL;
 
     // Allocate the memory needed to store all these floats
     storedDataLen = len * 36;
@@ -387,22 +388,44 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
+        
+        /*
+            The ESP_GATTS_READ_EVT is called multiple times on reads > 22 bytes.
+            It's called over and over again, but param->read.offset increases with the bytes already sent out.
+            I use that to track how much is left to send.
+        */
+
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
-        // rsp.attr_value.len = 4;
-        // rsp.attr_value.value[0] = 0xde;
-        // rsp.attr_value.value[1] = 0xed;
-        // rsp.attr_value.value[2] = 0xbe;
-        // rsp.attr_value.value[3] = 0xef;
 
-        rsp.attr_value.len = storedDataLen;
-        for (uint16_t i = 0; i < storedDataLen; i++) {
-            rsp.attr_value.value[i] = storedData[i];
+        // Get the number of bytes we have yet to send
+        uint16_t bytesLeftToSend = (storedDataLen - param->read.offset);
+
+        // Make sure it doesn't go over 22 or else it will error
+        if (bytesLeftToSend > 22)
+            rsp.attr_value.len = 22;
+        else
+            rsp.attr_value.len = bytesLeftToSend;
+
+        // Copy rsp.attr_value.len number of bytes into the rsp container
+        for (uint16_t i = 0; i < rsp.attr_value.len; i++) {
+            rsp.attr_value.value[i] = storedData[i + param->read.offset];
         }
-        
+
+        // If the bytes have been sent, free the allocated memory
+        if (param->read.offset + rsp.attr_value.len >= storedDataLen) {
+            if (storedData) {
+                free(storedData);
+                storedData = NULL;
+            }
+            storedDataLen = 0;
+        }
+
+        // Send the response to the mobile app
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                     ESP_GATT_OK, &rsp);
+
         break;
     }
     case ESP_GATTS_WRITE_EVT: {
