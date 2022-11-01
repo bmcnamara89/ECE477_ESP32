@@ -146,20 +146,20 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len)
     indexOfIterationStart = 0;
 
     // Allocate the memory needed to store all these floats
-    storedDataLen = len * 36;
+    storedDataLen = len * 32;
     storedData = malloc(sizeof(uint8_t) * storedDataLen);
 
     // iterate through and convert floats to individual bytes to be easily transmitted
-    for (uint16_t i = 0; i < storedDataLen; i += 36)
+    for (uint16_t i = 0; i < storedDataLen; i += 32)
     {
-        convert_float_using_special_method(storedData, data[i / 36].pos.x, i);
-        convert_float_using_special_method(storedData, data[i / 36].pos.y, i + 4);
-        convert_float_using_special_method(storedData, data[i / 36].pos.z, i + 8);
-        convert_float_using_special_method(storedData, data[i / 36].quat.r, i + 12);
-        convert_float_using_special_method(storedData, data[i / 36].quat.i, i + 16);
-        convert_float_using_special_method(storedData, data[i / 36].quat.j, i + 20);
-        convert_float_using_special_method(storedData, data[i / 36].quat.k, i + 24);
-        convert_double_using_special_method(storedData, data[i / 36].time, i + 28);
+        convert_float_using_special_method(storedData, data[i / 32].pos.x, i);
+        convert_float_using_special_method(storedData, data[i / 32].pos.y, i + 4);
+        convert_float_using_special_method(storedData, data[i / 32].pos.z, i + 8);
+        convert_float_using_special_method(storedData, data[i / 32].quat.r, i + 12);
+        convert_float_using_special_method(storedData, data[i / 32].quat.i, i + 16);
+        convert_float_using_special_method(storedData, data[i / 32].quat.j, i + 20);
+        convert_float_using_special_method(storedData, data[i / 32].quat.k, i + 24);
+        convert_float_using_special_method(storedData, data[i / 32].time, i + 28);
     }
 }
 
@@ -438,7 +438,7 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisIteration - param->read.offset);
 
         // Check to see if the bytes we are trying to send are past our 600 byte limit
-        if (param->read.offset + 36 > 600) {
+        if (param->read.offset + 32 > 600) {
             // If so, add the offset to indexOfIterationStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
             indexOfIterationStart += param->read.offset;
 
