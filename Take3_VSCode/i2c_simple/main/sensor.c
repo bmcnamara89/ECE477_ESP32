@@ -3,6 +3,12 @@
 #include "sensor.h"
 #include "data_structures.h"
 
+//Global Variables
+extern struct Coordinates globalPosition;
+extern struct Coordinates globalVelocity;
+extern double globalLastTime;
+extern double globalTimeSinceLastPoint;
+extern float rotationMatrix [4][4];
 
 /**
  * @brief Corrects the raw acceleration readings and repopulates the passed in struct with the corrected values
@@ -23,7 +29,7 @@ void CorrectAccel(struct Coordinates accel, struct Coordinates grav)
  * @param correctedAccel the acceleration after it has been corrected from gravity
  * @param timeSinceLastUpdate_us the time in microseconds since this method was last called.
  */
-void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpdate_us)
+void UpdatePosition(struct Coordinates correctedAccel)
 {
     double accelTermX, accelTermY, accelTermZ;
 
@@ -36,108 +42,66 @@ void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpd
     if (correctedAccel.x < errorMargin && correctedAccel.x > neg_errorMargin)
     {
         correctedAccel.x = 0.0f;
-        numZeroX++;
     }
     if (correctedAccel.y < errorMargin && correctedAccel.y > neg_errorMargin)
     {
         correctedAccel.y = 0.0f;
-        numZeroY++;
     }
     if (correctedAccel.z < errorMargin && correctedAccel.z > neg_errorMargin)
     {
         correctedAccel.z = 0.0f;
-        numZeroZ++;
     }
 
 
-    if (velX < errorMarginVel && velX > neg_errorMarginVel) 
+    if (globalVelocity.x < errorMarginVel && globalVelocity.x > neg_errorMarginVel) 
     {
-        velX = 0.0f;
+        globalVelocity.x = 0.0f;
     }
-    if (velY < errorMarginVel && velY > neg_errorMarginVel) 
+    if (globalVelocity.y < errorMarginVel && globalVelocity.y > neg_errorMarginVel) 
     {
-        velY = 0.0f;
+        globalVelocity.y = 0.0f;
     }
-    if (velZ < errorMarginVel && velZ > neg_errorMarginVel) 
+    if (globalVelocity.z < errorMarginVel && globalVelocity.z > neg_errorMarginVel) 
     {
-        velZ = 0.0f;
+        globalVelocity.z = 0.0f;
     }
     
+    double accelTermCoeff = globalTimeSinceLastPoint * globalTimeSinceLastPoint * 0.5;
 
-    if (numZeroX >= 3)
-    {
-        numZeroX = 0;
-        velX = 0.0f;
-        // posX = 0.0f;
-    }
-    if (numZeroY >= 3)
-    {
-        numZeroY = 0;
-        velY = 0.0f;
-        // posY = 0.0f;
-    }
-    if (numZeroZ >= 3)
-    {
-        numZeroZ = 0;
-        velZ = 0.0f;
-        // posZ = 0.0f;
-    }
-
-    samplesTakenSinceReset++;
-
-
-    if (GetNetAcceleration(correctedAccel) > 1 && samplesTakenSinceReset > 100)
-    {
-        posX = 0;
-        posY = 0;
-        posZ = 0;
-        velX = 0.0f;
-        velY = 0.0f;
-        velZ = 0.0f;
-        printf("777.77\n");
-
-        samplesTakenSinceReset = 0;
-    }
-
-    double timeSinceLastUpdate_sec = timeSinceLastUpdate_us * 0.000001;
-    double timeSinceLastUpdate_sec_squared = pow(timeSinceLastUpdate_sec, 2);
-    double accelTermCoeff = timeSinceLastUpdate_sec_squared * 0.5;
-
-
-
-    velX += timeSinceLastUpdate_sec * correctedAccel.x;
-    velY += timeSinceLastUpdate_sec * correctedAccel.y;
-    velZ += timeSinceLastUpdate_sec * correctedAccel.z;
+    globalVelocity.x += globalTimeSinceLastPoint * correctedAccel.x;
+    globalVelocity.y += globalTimeSinceLastPoint * correctedAccel.y;
+    globalVelocity.z += globalTimeSinceLastPoint * correctedAccel.z;
 
     accelTermX = correctedAccel.x * accelTermCoeff;
     accelTermY = correctedAccel.y * accelTermCoeff;
     accelTermZ = correctedAccel.z * accelTermCoeff;
 
-    posX += (velX * timeSinceLastUpdate_sec + accelTermX);
-    posY += (velY * timeSinceLastUpdate_sec + accelTermY);
-    posZ += (velZ * timeSinceLastUpdate_sec + accelTermZ);
+    globalPosition.x += (globalVelocity.x * globalTimeSinceLastPoint + accelTermX);
+    globalPosition.y += (globalVelocity.y * globalTimeSinceLastPoint + accelTermY);
+    globalPosition.z += (globalVelocity.z * globalTimeSinceLastPoint + accelTermZ);
 }
 
 
-void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAccel, BLA::Matrix<4, 4>& rotationMatrix)
+void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAccel)
 {
-    bool didWork = Invert(rotationMatrix);
+    float invOut[4][4];
+    int didWork = InvertMatrix(invOut);
 
-    BLA::Matrix<4, 1> accelerationMatrix = {uncorrectedAccel.x, uncorrectedAccel.y, uncorrectedAccel.z, 0};
+    float accelerationMatrix[4] = {uncorrectedAccel.x, uncorrectedAccel.y, uncorrectedAccel.z, 0};
 
-    BLA::Matrix<4, 1> accelReferenced = rotationMatrix * accelerationMatrix;
+    float accelReferenced[4] = rotationMatrix * accelerationMatrix;
 
-    correctedAccel.x = accelReferenced(0);
-    correctedAccel.y = accelReferenced(1);
-    correctedAccel.z = accelReferenced(2);
+    correctedAccel.x = accelReferenced[0];
+    correctedAccel.y = accelReferenced[1];
+    correctedAccel.z = accelReferenced[2];
 
-    if (!didWork)
+    if (didWork == 0)
     {
         printf("OH NOES!!\n");
     }
 }
 
-void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion, BLA::Matrix<4, 4>& rotationMatrix)
+void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion)
 {
     float x_squared = pow(quaternion.i, 2);
     float y_squared = pow(quaternion.j, 2);
@@ -147,33 +111,33 @@ void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion, BLA::Matri
     float xz2 = 2 * quaternion.i * quaternion.k;
     float yz2 = 2 * quaternion.j * quaternion.k;
 
-    float sx2 = 2 * quaternion.i * quaternion.real;
-    float sy2 = 2 * quaternion.j * quaternion.real;
-    float sz2 = 2 * quaternion.k * quaternion.real;
+    float sx2 = 2 * quaternion.i * quaternion.r;
+    float sy2 = 2 * quaternion.j * quaternion.r;
+    float sz2 = 2 * quaternion.k * quaternion.r;
 
-    rotationMatrix(0, 0) = 1 - (2 * y_squared) - (2 * z_squared);
-    rotationMatrix(0, 1) = -1 * (xy2 - sz2);
-    rotationMatrix(0, 2) = xz2 + sy2;
-    rotationMatrix(0, 3) = 0;
+    rotationMatrix[0][0] = 1 - (2 * y_squared) - (2 * z_squared);
+    rotationMatrix[0][1] = -1 * (xy2 - sz2);
+    rotationMatrix[0][2] = xz2 + sy2;
+    rotationMatrix[0][3] = 0;
 
     
 
-    rotationMatrix(1, 0) = -1 * (xy2 + sz2);
-    rotationMatrix(1, 1) = 1 - (2 * x_squared) - (2 * z_squared);
-    rotationMatrix(1, 2) = yz2 - sx2;
-    rotationMatrix(1, 3) = 0;
+    rotationMatrix[1][0] = -1 * (xy2 + sz2);
+    rotationMatrix[1][1] = 1 - (2 * x_squared) - (2 * z_squared);
+    rotationMatrix[1][2] = yz2 - sx2;
+    rotationMatrix[1][3] = 0;
 
 
-    rotationMatrix(2, 0) = xz2 - sy2;
-    rotationMatrix(2, 1) = yz2 + sx2;
-    rotationMatrix(2, 2) = 1 - (2 * x_squared) - (2 * y_squared);
-    rotationMatrix(2, 3) = 0;
+    rotationMatrix[2][0] = xz2 - sy2;
+    rotationMatrix[2][1] = yz2 + sx2;
+    rotationMatrix[2][2] = 1 - (2 * x_squared) - (2 * y_squared);
+    rotationMatrix[2][3] = 0;
 
 
-    rotationMatrix(3, 0) = 0;
-    rotationMatrix(3, 1) = 0;
-    rotationMatrix(3, 2) = 0;
-    rotationMatrix(3, 3) = 1;
+    rotationMatrix[3][0] = 0;
+    rotationMatrix[3][1] = 0;
+    rotationMatrix[3][2] = 0;
+    rotationMatrix[3][3] = 1;
 }
 
 void PrintCurrentPosition(struct Coordinates pos)
@@ -218,4 +182,142 @@ void PrintGravityVector(struct Coordinates gravity)
     printf("%f", gravity.y);
     printf(", ");
     printf("%f", gravity.z);
+}
+
+
+//Adapted from: https://stackoverflow.com/a/1148405
+int InvertMatrix(float invOut[4][4])
+{
+    float inv[4][4];
+    float det;
+
+    inv[0][0] = rotationMatrix[1][1]  * rotationMatrix[2][2] * rotationMatrix[3][3] - 
+             rotationMatrix[1][1]  * rotationMatrix[2][3] * rotationMatrix[3][2] - 
+             rotationMatrix[2][1]  * rotationMatrix[1][2]  * rotationMatrix[3][3] + 
+             rotationMatrix[2][1]  * rotationMatrix[1][3]  * rotationMatrix[3][2] +
+             rotationMatrix[3][1] * rotationMatrix[1][2]  * rotationMatrix[2][3] - 
+             rotationMatrix[3][1] * rotationMatrix[1][3]  * rotationMatrix[2][2];
+
+    inv[1][0] = -rotationMatrix[1][0]  * rotationMatrix[2][2] * rotationMatrix[3][3] + 
+              rotationMatrix[1][0]  * rotationMatrix[2][3] * rotationMatrix[3][2] + 
+              rotationMatrix[2][0]  * rotationMatrix[1][2]  * rotationMatrix[3][3] - 
+              rotationMatrix[2][0]  * rotationMatrix[1][3]  * rotationMatrix[3][2] - 
+              rotationMatrix[3][0] * rotationMatrix[1][2]  * rotationMatrix[2][3] + 
+              rotationMatrix[3][0] * rotationMatrix[1][3]  * rotationMatrix[2][2];
+
+    inv[2][0] = rotationMatrix[1][0]  * rotationMatrix[2][1] * rotationMatrix[3][3] - 
+             rotationMatrix[1][0]  * rotationMatrix[2][3] * rotationMatrix[3][1] - 
+             rotationMatrix[2][0]  * rotationMatrix[1][1] * rotationMatrix[3][3] + 
+             rotationMatrix[2][0]  * rotationMatrix[1][3] * rotationMatrix[3][1] + 
+             rotationMatrix[3][0] * rotationMatrix[1][1] * rotationMatrix[2][3] - 
+             rotationMatrix[3][0] * rotationMatrix[1][3] * rotationMatrix[2][1];
+
+    inv[3][0] = -rotationMatrix[1][0]  * rotationMatrix[2][1] * rotationMatrix[3][2] + 
+               rotationMatrix[1][0]  * rotationMatrix[2][2] * rotationMatrix[3][1] +
+               rotationMatrix[2][0]  * rotationMatrix[1][1] * rotationMatrix[3][2] - 
+               rotationMatrix[2][0]  * rotationMatrix[1][2] * rotationMatrix[3][1] - 
+               rotationMatrix[3][0] * rotationMatrix[1][1] * rotationMatrix[2][2] + 
+               rotationMatrix[3][0] * rotationMatrix[1][2] * rotationMatrix[2][1];
+
+    inv[0][1] = -rotationMatrix[0][1]  * rotationMatrix[2][2] * rotationMatrix[3][3] + 
+              rotationMatrix[0][1]  * rotationMatrix[2][3] * rotationMatrix[3][2] + 
+              rotationMatrix[2][1]  * rotationMatrix[0][2] * rotationMatrix[3][3] - 
+              rotationMatrix[2][1]  * rotationMatrix[0][3] * rotationMatrix[3][2] - 
+              rotationMatrix[3][1] * rotationMatrix[0][2] * rotationMatrix[2][3] + 
+              rotationMatrix[3][1] * rotationMatrix[0][3] * rotationMatrix[2][2];
+
+    inv[1][1] = rotationMatrix[0][0]  * rotationMatrix[2][2] * rotationMatrix[3][3] - 
+             rotationMatrix[0][0]  * rotationMatrix[2][3] * rotationMatrix[3][2] - 
+             rotationMatrix[2][0]  * rotationMatrix[0][2] * rotationMatrix[3][3] + 
+             rotationMatrix[2][0]  * rotationMatrix[0][3] * rotationMatrix[3][2] + 
+             rotationMatrix[3][0] * rotationMatrix[0][2] * rotationMatrix[2][3] - 
+             rotationMatrix[3][0] * rotationMatrix[0][3] * rotationMatrix[2][2];
+
+    inv[2][1] = -rotationMatrix[0][0]  * rotationMatrix[2][1] * rotationMatrix[3][3] + 
+              rotationMatrix[0][0]  * rotationMatrix[2][3] * rotationMatrix[3][1] + 
+              rotationMatrix[2][0]  * rotationMatrix[0][1] * rotationMatrix[3][3] - 
+              rotationMatrix[2][0]  * rotationMatrix[0][3] * rotationMatrix[3][1] - 
+              rotationMatrix[3][0] * rotationMatrix[0][1] * rotationMatrix[2][3] + 
+              rotationMatrix[3][0] * rotationMatrix[0][3] * rotationMatrix[2][1];
+
+    inv[3][1] = rotationMatrix[0][0]  * rotationMatrix[2][1] * rotationMatrix[3][2] - 
+              rotationMatrix[0][0]  * rotationMatrix[2][2] * rotationMatrix[3][1] - 
+              rotationMatrix[2][0]  * rotationMatrix[0][1] * rotationMatrix[3][2] + 
+              rotationMatrix[2][0]  * rotationMatrix[0][2] * rotationMatrix[3][1] + 
+              rotationMatrix[3][0] * rotationMatrix[0][1] * rotationMatrix[2][2] - 
+              rotationMatrix[3][0] * rotationMatrix[0][2] * rotationMatrix[2][1];
+
+    inv[0][2] = rotationMatrix[0][1]  * rotationMatrix[1][2] * rotationMatrix[3][3] - 
+             rotationMatrix[0][1]  * rotationMatrix[1][3] * rotationMatrix[3][2] - 
+             rotationMatrix[1][1]  * rotationMatrix[0][2] * rotationMatrix[3][3] + 
+             rotationMatrix[1][1]  * rotationMatrix[0][3] * rotationMatrix[3][2] + 
+             rotationMatrix[3][1] * rotationMatrix[0][2] * rotationMatrix[1][3] - 
+             rotationMatrix[3][1] * rotationMatrix[0][3] * rotationMatrix[1][2];
+
+    inv[1][2] = -rotationMatrix[0][0]  * rotationMatrix[1][2] * rotationMatrix[3][3] + 
+              rotationMatrix[0][0]  * rotationMatrix[1][3] * rotationMatrix[3][2] + 
+              rotationMatrix[1][0]  * rotationMatrix[0][2] * rotationMatrix[3][3] - 
+              rotationMatrix[1][0]  * rotationMatrix[0][3] * rotationMatrix[3][2] - 
+              rotationMatrix[3][0] * rotationMatrix[0][2] * rotationMatrix[1][3] + 
+              rotationMatrix[3][0] * rotationMatrix[0][3] * rotationMatrix[1][2];
+
+    inv[2][2] = rotationMatrix[0][0]  * rotationMatrix[1][1] * rotationMatrix[3][3] - 
+              rotationMatrix[0][0]  * rotationMatrix[1][3] * rotationMatrix[3][1] - 
+              rotationMatrix[1][0]  * rotationMatrix[0][1] * rotationMatrix[3][3] + 
+              rotationMatrix[1][0]  * rotationMatrix[0][3] * rotationMatrix[3][1] + 
+              rotationMatrix[3][0] * rotationMatrix[0][1] * rotationMatrix[1][3] - 
+              rotationMatrix[3][0] * rotationMatrix[0][3] * rotationMatrix[1][1];
+
+    inv[3][2] = -rotationMatrix[0][0]  * rotationMatrix[1][1] * rotationMatrix[3][2] + 
+               rotationMatrix[0][0]  * rotationMatrix[1][2] * rotationMatrix[3][1] + 
+               rotationMatrix[1][0]  * rotationMatrix[0][1] * rotationMatrix[3][2] - 
+               rotationMatrix[1][0]  * rotationMatrix[0][2] * rotationMatrix[3][1] - 
+               rotationMatrix[3][0] * rotationMatrix[0][1] * rotationMatrix[1][2] + 
+               rotationMatrix[3][0] * rotationMatrix[0][2] * rotationMatrix[1][1];
+
+    inv[0][3] = -rotationMatrix[0][1] * rotationMatrix[1][2] * rotationMatrix[2][3] + 
+              rotationMatrix[0][1] * rotationMatrix[1][3] * rotationMatrix[2][2] + 
+              rotationMatrix[1][1] * rotationMatrix[0][2] * rotationMatrix[2][3] - 
+              rotationMatrix[1][1] * rotationMatrix[0][3] * rotationMatrix[2][2] - 
+              rotationMatrix[2][1] * rotationMatrix[0][2] * rotationMatrix[1][3] + 
+              rotationMatrix[2][1] * rotationMatrix[0][3] * rotationMatrix[1][2];
+
+    inv[1][3] = rotationMatrix[0][0] * rotationMatrix[1][2] * rotationMatrix[2][3] - 
+             rotationMatrix[0][0] * rotationMatrix[1][3] * rotationMatrix[2][2] - 
+             rotationMatrix[1][0] * rotationMatrix[0][2] * rotationMatrix[2][3] + 
+             rotationMatrix[1][0] * rotationMatrix[0][3] * rotationMatrix[2][2] + 
+             rotationMatrix[2][0] * rotationMatrix[0][2] * rotationMatrix[1][3] - 
+             rotationMatrix[2][0] * rotationMatrix[0][3] * rotationMatrix[1][2];
+
+    inv[2][3] = -rotationMatrix[0][0] * rotationMatrix[1][1] * rotationMatrix[2][3] + 
+               rotationMatrix[0][0] * rotationMatrix[1][3] * rotationMatrix[2][1] + 
+               rotationMatrix[1][0] * rotationMatrix[0][1] * rotationMatrix[2][3] - 
+               rotationMatrix[1][0] * rotationMatrix[0][3] * rotationMatrix[2][1] - 
+               rotationMatrix[2][0] * rotationMatrix[0][1] * rotationMatrix[1][3] + 
+               rotationMatrix[2][0] * rotationMatrix[0][3] * rotationMatrix[1][1];
+
+    inv[3][3] = rotationMatrix[0][0] * rotationMatrix[1][1] * rotationMatrix[2][2] - 
+              rotationMatrix[0][0] * rotationMatrix[1][2] * rotationMatrix[2][1] - 
+              rotationMatrix[1][0] * rotationMatrix[0][1] * rotationMatrix[2][2] + 
+              rotationMatrix[1][0] * rotationMatrix[0][2] * rotationMatrix[2][1] + 
+              rotationMatrix[2][0] * rotationMatrix[0][1] * rotationMatrix[1][2] - 
+              rotationMatrix[2][0] * rotationMatrix[0][2] * rotationMatrix[1][1];
+
+    det = rotationMatrix[0][0] * inv[0][0] + rotationMatrix[0][1] * inv[1][0] + rotationMatrix[0][2] * inv[2][0] + rotationMatrix[0][3] * inv[3][0];
+
+    if (det == 0)
+        return 0;
+
+    det = 1.0 / det;
+
+    int r, c;
+    for (r = 0; r < 4; r++)
+    {
+        for(c = 0; c < 4; c++)
+        {
+            invOut[r][c] = inv[r][c] * det;
+        }
+    }
+
+    return 1;
 }

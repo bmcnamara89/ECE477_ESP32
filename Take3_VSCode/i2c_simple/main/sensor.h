@@ -4,18 +4,21 @@
 #include "data_structures.h"
 
 // Quaternion Methods (Absolute Orientation)
-void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion, BLA::Matrix<4, 4>& rotationMatrix);
-void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAceel, BLA::Matrix<4, 4>& rotationMatrix);
+void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion);
+void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAceel);
 
 // Position Methods
-void CorrectAccel(struct Coordinates accel);
-void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpdate_us);
+void CorrectAccel(struct Coordinates accel, struct Coordinates grav);
+void UpdatePosition(struct Coordinates correctedAccel);
 
 // Print Methods
 void PrintGravityVector(struct Coordinates gravity);
 void PrintCurrentPosition();
 void GetAndPrintAllReadings();
-void PrintDetailedDeadReckoning(struct Coordinates accel);
+void PrintDetailedDeadReckoning(struct Coordinates pos, struct Coordinates vel, struct Coordinates accel);
+
+//Matrix Methods
+int InvertMatrix(float invOut[4][4]);
 
 
 
