@@ -21,7 +21,7 @@ void CorrectAccel(struct Coordinates accel, struct Coordinates grav)
  * @param correctedAccel the acceleration after it has been corrected from gravity
  * @param timeSinceLastUpdate_us the time in microseconds since this method was last called.
  */
-void UpdatePosition(struct Coordinates& correctedAccel, uint32_t timeSinceLastUpdate_us)
+void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpdate_us)
 {
     double accelTermX, accelTermY, accelTermZ;
 
@@ -127,7 +127,7 @@ void UpdatePosition(struct Coordinates& correctedAccel, uint32_t timeSinceLastUp
  * 
  * @returns bool - if the eulerRotations struct was successfully (true) populated or not (false)
  */
-bool GetEulerRotation(EulerRotations& eulerRotations, struct Coordinates& accel, struct Coordinates& gyro, struct Coordinates& magnet)
+int GetEulerRotation(EulerRotations eulerRotations, struct Coordinates accel, struct Coordinates gyro, struct Coordinates magnet)
 {
     Quaternion quaternion;
     if (GetQuaternion(quaternion))

@@ -28,7 +28,8 @@ void printDPS(struct DataPoint *dps, int numDPs);
 void fakeReckoning(struct DataPoint *dps, int numDPs);
 void print_buffer(struct DataOut* data, uint16_t len);
 void deadReckoning(struct DataPoint *dps, int numDPs);
-void pointReckoning(struct DataPoint curr, struct DataPoint prev);
+void pointReckoning(struct DataPoint dp);
+void firstPointReckoning(struct DataPoint dp);
 
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 {
@@ -301,8 +302,12 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
 
 }
 
-void pointReckoning(struct DataPoint curr, struct DataPoint prev)
+void pointReckoning(struct DataPoint dp)
 {
-    
     //ConvertQuaternionToRotationMatrix()
+}
+
+void firstPointReckoning(struct DataPoint dp)
+{
+
 }
