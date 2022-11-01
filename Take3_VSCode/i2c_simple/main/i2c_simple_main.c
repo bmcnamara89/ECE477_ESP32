@@ -84,12 +84,15 @@ void app_main() {
     //I2C
 	uint8_t rx_data[23];
     setup_BNO_I2C();
+    printf("I2C Init...\n");
 
     //Timer
     setup_swing_Timer();
+    printf("Timer Init...\n");
 
     //Bluetooth
     init_ble();
+    printf("Bluetooth Init...\n");
 
     //Loop Variables
     int gotLinAccel = 0;
@@ -118,7 +121,6 @@ void app_main() {
         if(rx_data[9] == 0x04) //Linear Acceleration
         {
             gotLinAccel = 1;
-
             uint8_t q = 8;
 			uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
 			uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
@@ -134,9 +136,11 @@ void app_main() {
             if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
             {
                 inSwing = 1;
+                gotGravity = 0;
+                gotQuaternions = 0;
                 swingNum++;
-                timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
-                swingStartTime = timerSec;
+                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
+                swingStartTime = 0.0;
                 
                 dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
             }
@@ -240,17 +244,10 @@ void printDPS(struct DataPoint *dps, int numDPs)
 
 void fakeReckoning(struct DataPoint *dps, int numDPs)
 { 
-    int tempNum = 10;
     struct DataOut * outputData;  
-    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * tempNum); //switch tempNUm for numDPs
+    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs);
 
-    struct Coordinates p;
-    p.x = 0.362;
-    p.y = 4.77;
-    p.z = 20.001;
-
-    //switched numDPs to tempNum for testing
-    for(int i = 0; i < tempNum; i++)
+    for(int i = 0; i < numDPs; i++)
     {
         outputData[i].pos.x = 0.362;
         outputData[i].pos.y = 4.77;
@@ -262,9 +259,9 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
         outputData[i].time = dps[i].time;
     }
 
-    printf("Buffer Filled: %d Data Points\n", tempNum);
-    print_buffer(outputData, tempNum);
-    set_transmit_buffer(outputData, tempNum);
+    printf("Buffer Filled: %d Data Points\n", numDPs);
+    print_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs);
 
 }
 
@@ -282,13 +279,13 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); //switch tempNUm for numDPs
 
     //switched numDPs to tempNum for testing
-    for(int i = 0; i < numDPs i++)
+    for(int i = 0; i < numDPs; i++)
     {
         //Call Dead Reckoning on Each Point
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs);
+    //set_transmit_buffer(outputData, numDPs);
 
 }
