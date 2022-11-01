@@ -261,7 +261,7 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs, 1.1);
 
 }
 

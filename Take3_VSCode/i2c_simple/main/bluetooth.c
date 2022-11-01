@@ -136,7 +136,7 @@ struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
  * @param data - an array of floats to put in the transmit buffer
  * @param len - the length of the array of floats (number of floats, NOT NUMBER OF BYTES)
  */
-void set_transmit_buffer(struct DataOut* data, uint16_t len)
+void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContact)
 {
     // free the past data if any is present
     free (storedData);
@@ -147,7 +147,7 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len)
 
     // Allocate the memory needed to store all these floats
     storedDataLen = len * 32;
-    storedData = malloc(sizeof(uint8_t) * storedDataLen);
+    storedData = malloc(sizeof(uint8_t) * storedDataLen + 4);
 
     // iterate through and convert floats to individual bytes to be easily transmitted
     for (uint16_t i = 0; i < storedDataLen; i += 32)
@@ -161,6 +161,8 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len)
         convert_float_using_special_method(storedData, data[i / 32].quat.k, i + 24);
         convert_float_using_special_method(storedData, data[i / 32].time, i + 28);
     }
+
+    convert_float_using_special_method(storedData, timeOfContact, storedDataLen - 4);
 }
 
 
