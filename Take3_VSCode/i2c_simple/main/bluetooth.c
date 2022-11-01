@@ -19,10 +19,9 @@
 
 
 
-
-
 uint8_t* storedData;
 uint16_t storedDataLen;
+uint16_t indexOfIterationStart;
 
 uint8_t char1_str[] = {0x11,0x22,0x33};
 esp_gatt_char_prop_t a_property = 0;
@@ -142,6 +141,9 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len)
     // free the past data if any is present
     free (storedData);
     storedData = NULL;
+
+    // We just put in new data, set the starting index to 0
+    indexOfIterationStart = 0;
 
     // Allocate the memory needed to store all these floats
     storedDataLen = len * 36;
@@ -393,14 +395,59 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
             The ESP_GATTS_READ_EVT is called multiple times on reads > 22 bytes.
             It's called over and over again, but param->read.offset increases with the bytes already sent out.
             I use that to track how much is left to send.
+
+            Breakdown of what happens if we have > 600 bytes to send:
+                - Breaking into Iterations:
+                    - I break it into 'iterations' that are of maximum 600 bytes long. 
+                    - The index of storedData that the iteration starts sending is kept track of by indexOfIterationStart
+                    - Every iteration, indexOfIterationStart is increased to the appropriate index of storedData, and then a new iteration is started
+                - Breaking an Iteration into smaller payloads:
+                    - Inside each iteration, it can only send 22 byte long payloads. 
+                    - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that iteration
         */
 
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
 
-        // Get the number of bytes we have yet to send
-        uint16_t bytesLeftToSend = (storedDataLen - param->read.offset);
+        if (storedDataLen == 0) 
+        {
+            // Send back an empty response just so mobile app doesn't freak out
+            rsp.attr_value.len = 0;
+
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            return;
+        }
+
+        /*
+            This stores the TOTAL number of bytes we'll send this iteration. It has a max of 600 (max packet size in BLE).
+        */
+        uint16_t totalNumberBytesToSendInThisIteration;
+
+        
+        // Figure out how many bytes we need to send in total this iteration. 
+        if (storedDataLen - indexOfIterationStart >= 600)
+            totalNumberBytesToSendInThisIteration = 600;
+        else if (storedDataLen - indexOfIterationStart < 600)
+            totalNumberBytesToSendInThisIteration = storedDataLen - indexOfIterationStart;
+        else
+            totalNumberBytesToSendInThisIteration = storedDataLen;
+
+
+        // Get the number of bytes we have yet to send in this iteration
+        uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisIteration - param->read.offset);
+
+        // Check to see if the bytes we are trying to send are past our 600 byte limit
+        if (param->read.offset + 36 > 600) {
+            // If so, add the offset to indexOfIterationStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
+            indexOfIterationStart += param->read.offset;
+
+            // Send back an empty response just so mobile app doesn't freak out
+            rsp.attr_value.len = 0;
+
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            return;
+        }
 
         // Make sure it doesn't go over 22 or else it will error
         if (bytesLeftToSend > 22)
@@ -410,11 +457,11 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
 
         // Copy rsp.attr_value.len number of bytes into the rsp container
         for (uint16_t i = 0; i < rsp.attr_value.len; i++) {
-            rsp.attr_value.value[i] = storedData[i + param->read.offset];
+            rsp.attr_value.value[i] = storedData[i + param->read.offset + indexOfIterationStart];
         }
 
-        // If the bytes have been sent, free the allocated memory
-        if (param->read.offset + rsp.attr_value.len >= storedDataLen) {
+        // If ALL bytes have been sent, free the allocated memory
+        if (param->read.offset + rsp.attr_value.len + indexOfIterationStart >= storedDataLen) {
             if (storedData) {
                 free(storedData);
                 storedData = NULL;
