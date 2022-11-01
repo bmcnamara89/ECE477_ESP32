@@ -19,9 +19,9 @@
 
 
 
-uint8_t* storedData;
-uint16_t storedDataLen;
-uint16_t indexOfIterationStart;
+uint8_t* storedData;            // This is our data buffer. This holds all the DataOut points, but converted to uint8_t's
+uint16_t storedDataLen;         // This keeps track of our data buffer's (storedData) total length in bytes
+uint16_t indexOfIterationStart; // This keeps track of the index to start reading storedData at on the current transmission iteration
 
 uint8_t char1_str[] = {0x11,0x22,0x33};
 esp_gatt_char_prop_t a_property = 0;
