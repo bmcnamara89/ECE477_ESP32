@@ -1,26 +1,21 @@
 #ifndef SENSORFUSION_H
 #define SENSORFUSION_H
 #include <math.h>
+#include "data_structures.h"
 
 // Quaternion Methods (Absolute Orientation)
-bool GetEulerRotation(EulerRotations& eulerRotations, Quaternion& quaternion);
-bool GetEulerRotation(EulerRotations& eulerRotations, DirectionalValues& accel, DirectionalValues& gyro, DirectionalValues& magnet);
-void ConvertQuaternionToRotationMatrix(Quaternion& quaternion, BLA::Matrix<4, 4>& rotationMatrix);
-void ConvertQuaternionToEulerAngles(Quaternion& quaternion, EulerRotations& euler);
-void ConvertLocalToGlobalCoords(DirectionalValues& uncorrectedAccel, DirectionalValues& correctedAceel, BLA::Matrix<4, 4>& rotationMatrix);
-void ConvertLocalToGlobalCoords(DirectionalValues& uncorrectedAccel, DirectionalValues& correctedAccel, EulerRotations& euler);
+void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion, BLA::Matrix<4, 4>& rotationMatrix);
+void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAceel, BLA::Matrix<4, 4>& rotationMatrix);
 
 // Position Methods
-//  bool GetGravityVector(DirectionalValues& gravityVector, Quaternion& quaternion);
-void CorrectAccel(DirectionalValues& accel);
-void UpdatePosition(DirectionalValues& correctedAccel, uint32_t timeSinceLastUpdate_us);
+void CorrectAccel(struct Coordinates accel);
+void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpdate_us);
 
 // Print Methods
-void PrintGravityVector(DirectionalValues& gravity);
-void PrintEulerRotations(EulerRotations& eulerRotations);
+void PrintGravityVector(struct Coordinates gravity);
 void PrintCurrentPosition();
 void GetAndPrintAllReadings();
-void PrintDetailedDeadReckoning(DirectionalValues& accel);
+void PrintDetailedDeadReckoning(struct Coordinates accel);
 
 
 

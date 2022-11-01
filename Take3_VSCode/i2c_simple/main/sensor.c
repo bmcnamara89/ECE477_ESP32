@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <math.h>
 #include "sensor.h"
 #include "data_structures.h"
 
@@ -117,73 +119,7 @@ void UpdatePosition(struct Coordinates correctedAccel, uint32_t timeSinceLastUpd
 }
 
 
-/**
- * @brief Gets the Euler Rotation instead of Quaternion. This is a different way of seeing 3D orientation
- * 
- * @param eulerRotations this is populated with the newly updated values
- * @param accel the acceleration readings to update the filter with
- * @param gyro the gyroscope readings to update the filter with
- * @param magnet the compass readings to update the filter with
- * 
- * @returns bool - if the eulerRotations struct was successfully (true) populated or not (false)
- */
-int GetEulerRotation(EulerRotations eulerRotations, struct Coordinates accel, struct Coordinates gyro, struct Coordinates magnet)
-{
-    Quaternion quaternion;
-    if (GetQuaternion(quaternion))
-    {
-        float t0 = 2.0 * (quaternion.real * quaternion.i + quaternion.j * quaternion.k);
-        float t1 = 1.0 - 2.0 * (quaternion.i * quaternion.i + quaternion.j * quaternion.j);
-        eulerRotations.roll = UnitConversions::RadiansToDegrees(atan2(t0, t1));
-
-        float t2 = +2.0 * (quaternion.real * quaternion.j - quaternion.k * quaternion.i);
-        
-        t2 = t2 > 1 ? 1.0 : t2;
-        t2 = t2 < -1 ? -1.0 : t2;
-        
-        eulerRotations.pitch = UnitConversions::RadiansToDegrees(asin(t2));
-
-        float t3 = +2.0 * (quaternion.real * quaternion.k + quaternion.i * quaternion.j);
-        float t4 = +1.0 - 2.0 * (quaternion.j * quaternion.j + quaternion.k * quaternion.k);
-        eulerRotations.yaw = UnitConversions::RadiansToDegrees(atan2(t3, t4));
-
-        return true;
-    }
-
-    return false;
-}
-
-
-/**
- * @brief Gets the Euler Rotation instead of Quaternion. This is a different way of seeing 3D orientation
- * 
- * @param eulerRotations this is populated with the newly updated values
- * @param quaternion the quaternion to use to convert
- * 
- * @returns bool - if the eulerRotations struct was successfully (true) populated or not (false)
- */
-bool GetEulerRotation(EulerRotations& eulerRotations, Quaternion& quaternion)
-{
-    float t0 = 2.0 * (quaternion.real * quaternion.i + quaternion.j * quaternion.k);
-    float t1 = 1.0 - 2.0 * (quaternion.i * quaternion.i + quaternion.j * quaternion.j);
-    eulerRotations.roll = UnitConversions::RadiansToDegrees(atan2(t0, t1));
-
-    float t2 = 2.0 * (quaternion.real * quaternion.j - quaternion.k * quaternion.i);
-    
-    t2 = t2 > 1 ? 1.0 : t2;
-    t2 = t2 < -1 ? -1.0 : t2;
-    
-    eulerRotations.pitch = UnitConversions::RadiansToDegrees(asin(t2));
-
-    float t3 = 2.0 * (quaternion.real * quaternion.k + quaternion.i * quaternion.j);
-    float t4 = 1.0 - 2.0 * (quaternion.j * quaternion.j + quaternion.k * quaternion.k);
-    eulerRotations.yaw = UnitConversions::RadiansToDegrees(atan2(t3, t4));
-
-    return true;
-}
-
-
-void ConvertLocalToGlobalCoords(struct Coordinates& uncorrectedAccel, struct Coordinates& correctedAccel, BLA::Matrix<4, 4>& rotationMatrix)
+void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAccel, BLA::Matrix<4, 4>& rotationMatrix)
 {
     bool didWork = Invert(rotationMatrix);
 
@@ -201,29 +137,7 @@ void ConvertLocalToGlobalCoords(struct Coordinates& uncorrectedAccel, struct Coo
     }
 }
 
-
-void ConvertLocalToGlobalCoords(struct Coordinates& uncorrectedAccel, struct Coordinates& correctedAccel, EulerRotations& euler)
-{
-    correctedAccel.x = (float) (uncorrectedAccel.x*(cos(euler.roll)*cos(euler.yaw)+sin(euler.roll)*sin(euler.pitch)*sin(euler.yaw)) + uncorrectedAccel.y*(cos(euler.pitch)*sin(euler.yaw)) + uncorrectedAccel.z*(-sin(euler.roll)*cos(euler.yaw)+cos(euler.roll)*sin(euler.pitch)*sin(euler.yaw)));
-    correctedAccel.y = (float) (uncorrectedAccel.x*(-cos(euler.roll)*sin(euler.yaw)+sin(euler.roll)*sin(euler.pitch)*cos(euler.yaw)) + uncorrectedAccel.y*(cos(euler.pitch)*cos(euler.yaw)) + uncorrectedAccel.z*(sin(euler.roll)*sin(euler.yaw)+ cos(euler.roll)*sin(euler.pitch)*cos(euler.yaw)));
-    correctedAccel.z = (float) (uncorrectedAccel.x*(sin(euler.roll)*cos(euler.pitch)) + uncorrectedAccel.y*(-sin(euler.pitch)) + uncorrectedAccel.z*(cos(euler.roll)*cos(euler.pitch)));
-}
-
-void ConvertQuaternionToEulerAngles(Quaternion& quaternion, EulerRotations& euler)
-{
-    float w = quaternion.real;
-    float x = quaternion.i;
-    float y = quaternion.j;
-    float z = quaternion.k;
-
-
-
-    euler.yaw   = UnitConversions::RadiansToDegrees(atan2(2.0f * (x * y + w * z), w * w + x * x - y * y - z * z));
-    euler.pitch = UnitConversions::RadiansToDegrees(-asin(2.0f * (x * z - w * y)));
-    euler.roll = UnitConversions::RadiansToDegrees(atan2(2.0f * (w * x + y * z), w * w - x * x - y * y + z * z));
-}
-
-void ConvertQuaternionToRotationMatrix(Quaternion& quaternion, BLA::Matrix<4, 4>& rotationMatrix)
+void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion, BLA::Matrix<4, 4>& rotationMatrix)
 {
     float x_squared = pow(quaternion.i, 2);
     float y_squared = pow(quaternion.j, 2);
@@ -260,44 +174,7 @@ void ConvertQuaternionToRotationMatrix(Quaternion& quaternion, BLA::Matrix<4, 4>
     rotationMatrix(3, 1) = 0;
     rotationMatrix(3, 2) = 0;
     rotationMatrix(3, 3) = 1;
-
-
-
-
-    // rotationMatrix.row1[0] = 1 - (2 * y_squared) - (2 * z_squared);
-    // rotationMatrix.row1[1] = xy2 - sz2;
-    // rotationMatrix.row1[2] = xz2 + sy2;
-    // rotationMatrix.row1[3] = 0;
-
-
-    // rotationMatrix.row2[0] = xy2 + sz2;
-    // rotationMatrix.row2[1] = 1 - (2 * x_squared) - (2 * z_squared);
-    // rotationMatrix.row2[2] = yz2 - sx2;
-    // rotationMatrix.row2[3] = 0;
-
-
-    // rotationMatrix.row3[0] = xz2 - sy2;
-    // rotationMatrix.row3[1] = yz2 - sx2;
-    // rotationMatrix.row3[2] = 1 - (2 * x_squared) - (2 * y_squared);
-    // rotationMatrix.row3[3] = 0;
-
-
-    // rotationMatrix.row4[0] = 0;
-    // rotationMatrix.row4[1] = 0;
-    // rotationMatrix.row4[2] = 0;
-    // rotationMatrix.row4[3] = 1;
 }
-
-
-void PrintEulerRotations(struct EulerRotations eulerRotations)
-{
-    printf("%f", eulerRotations.roll);
-    printf("/");
-    printf("%f", eulerRotations.pitch);
-    printf("/");
-    printf("%f"), (eulerRotations.yaw);
-}
-
 
 void PrintCurrentPosition(struct Coordinates pos)
 {
@@ -307,7 +184,6 @@ void PrintCurrentPosition(struct Coordinates pos)
     printf("/");
     printf("%f", pos.z);
 }
-
 
 void PrintDetailedDeadReckoning(struct Coordinates pos, struct Coordinates vel, struct Coordinates accel)
 {
@@ -334,9 +210,7 @@ void PrintDetailedDeadReckoning(struct Coordinates pos, struct Coordinates vel, 
     printf("%f", accel.z);
 }
 
-
-
-void SensorFusion::PrintGravityVector(struct Coordinates gravity)
+void PrintGravityVector(struct Coordinates gravity)
 {
     printf("Gravity Vector in m/s/s (x, y, z):  ");
     printf("%f", gravity.x);
