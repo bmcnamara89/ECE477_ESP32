@@ -28,7 +28,7 @@ void printDPS(struct DataPoint *dps, int numDPs);
 void fakeReckoning(struct DataPoint *dps, int numDPs);
 void print_buffer(struct DataOut* data, uint16_t len);
 void deadReckoning(struct DataPoint *dps, int numDPs);
-
+void pointReckoning(struct DataPoint curr, struct DataPoint prev);
 
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 {
@@ -136,8 +136,12 @@ void app_main() {
             {
                 inSwing = 1;
                 swingNum++;
-                timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
-                swingStartTime = timerSec;
+                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
+                //timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
+                swingStartTime = 0.0; //timerSec;
+
+                gotGravity = 0;
+                gotQuaternions = 0;
                 
                 dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
             }
@@ -245,11 +249,6 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
     struct DataOut * outputData;  
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * tempNum); //switch tempNUm for numDPs
 
-    struct Coordinates p;
-    p.x = 0.362;
-    p.y = 4.77;
-    p.z = 20.001;
-
     //switched numDPs to tempNum for testing
     for(int i = 0; i < tempNum; i++)
     {
@@ -283,10 +282,17 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); //switch tempNUm for numDPs
 
     //switched numDPs to tempNum for testing
-    for(int i = 0; i < numDPs i++)
+    for(int i = 0; i < numDPs; i++)
     {
         //Call Dead Reckoning on Each Point
-        pointReckoning();
+        if(i > 0)
+        {
+            pointReckoning(dps[i]);
+        }
+        else
+        {
+            firstPointReckoning(dps[i]);
+        }
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
@@ -295,7 +301,8 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
 
 }
 
-void pointReckoning()
+void pointReckoning(struct DataPoint curr, struct DataPoint prev)
 {
-
+    
+    //ConvertQuaternionToRotationMatrix()
 }
