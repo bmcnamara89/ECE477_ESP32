@@ -21,7 +21,7 @@
 
 uint8_t* storedData;            // This is our data buffer. This holds all the DataOut points, but converted to uint8_t's
 uint16_t storedDataLen;         // This keeps track of our data buffer's (storedData) total length in bytes
-uint16_t indexOfIterationStart; // This keeps track of the index to start reading storedData at on the current transmission iteration
+uint16_t indexOfWindowStart;    // This keeps track of the index to start reading storedData at on the current transmission window
 
 uint8_t char1_str[] = {0x11,0x22,0x33};
 esp_gatt_char_prop_t a_property = 0;
@@ -143,7 +143,7 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContac
     storedData = NULL;
 
     // We just put in new data, set the starting index to 0
-    indexOfIterationStart = 0;
+    indexOfWindowStart = 0;
 
     // Allocate the memory needed to store all these floats
     storedDataLen = len * 32;
@@ -398,14 +398,14 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
             It's called over and over again, but param->read.offset increases with the bytes already sent out.
             I use that to track how much is left to send.
 
-            Breakdown of what happens if we have > 600 bytes to send:
-                - Breaking into Iterations:
-                    - I break it into 'iterations' that are of maximum 600 bytes long. 
-                    - The index of storedData that the iteration starts sending is kept track of by indexOfIterationStart
-                    - Every iteration, indexOfIterationStart is increased to the appropriate index of storedData, and then a new iteration is started
-                - Breaking an Iteration into smaller payloads:
-                    - Inside each iteration, it can only send 22 byte long payloads. 
-                    - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that iteration
+            Breakdown of what happens if we have > 600 bytes to send (sliding window from 463):
+                - Breaking into Window:
+                    - I break it into 'windows' that are of maximum 600 bytes long. 
+                    - The index of storedData that the window starts sending is kept track of by indexOfWindowStart
+                    - Every window, indexOfWindowStart is increased to the appropriate index of storedData, and then a new window is started
+                - Breaking a Window into smaller payloads:
+                    - Inside each window, it can only send 22 byte long payloads. 
+                    - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that window
         */
 
         esp_gatt_rsp_t rsp;
@@ -422,27 +422,27 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         }
 
         /*
-            This stores the TOTAL number of bytes we'll send this iteration. It has a max of 600 (max packet size in BLE).
+            This stores the TOTAL number of bytes we'll send this window. It has a max of 600 (max packet size in BLE).
         */
-        uint16_t totalNumberBytesToSendInThisIteration;
+        uint16_t totalNumberBytesToSendInThisWindow;
 
         
-        // Figure out how many bytes we need to send in total this iteration. 
-        if (storedDataLen - indexOfIterationStart >= 600)
-            totalNumberBytesToSendInThisIteration = 600;
-        else if (storedDataLen - indexOfIterationStart < 600)
-            totalNumberBytesToSendInThisIteration = storedDataLen - indexOfIterationStart;
+        // Figure out how many bytes we need to send in total this window. 
+        if (storedDataLen - indexOfWindowStart >= 600)
+            totalNumberBytesToSendInThisWindow = 600;
+        else if (storedDataLen - indexOfWindowStart < 600)
+            totalNumberBytesToSendInThisWindow = storedDataLen - indexOfWindowStart;
         else
-            totalNumberBytesToSendInThisIteration = storedDataLen;
+            totalNumberBytesToSendInThisWindow = storedDataLen;
 
 
-        // Get the number of bytes we have yet to send in this iteration
-        uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisIteration - param->read.offset);
+        // Get the number of bytes we have yet to send in this window
+        uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisWindow - param->read.offset);
 
         // Check to see if the bytes we are trying to send are past our 600 byte limit
         if (param->read.offset + 32 > 600) {
-            // If so, add the offset to indexOfIterationStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
-            indexOfIterationStart += param->read.offset;
+            // If so, add the offset to indexOfWindowStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
+            indexOfWindowStart += param->read.offset;
 
             // Send back an empty response just so mobile app doesn't freak out
             rsp.attr_value.len = 0;
@@ -459,11 +459,11 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
 
         // Copy rsp.attr_value.len number of bytes into the rsp container
         for (uint16_t i = 0; i < rsp.attr_value.len; i++) {
-            rsp.attr_value.value[i] = storedData[i + param->read.offset + indexOfIterationStart];
+            rsp.attr_value.value[i] = storedData[i + param->read.offset + indexOfWindowStart];
         }
 
         // If ALL bytes have been sent, free the allocated memory
-        if (param->read.offset + rsp.attr_value.len + indexOfIterationStart >= storedDataLen) {
+        if (param->read.offset + rsp.attr_value.len + indexOfWindowStart >= storedDataLen) {
             if (storedData) {
                 free(storedData);
                 storedData = NULL;
