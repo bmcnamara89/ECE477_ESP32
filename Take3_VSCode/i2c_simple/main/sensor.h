@@ -5,7 +5,7 @@
 
 // Quaternion Methods (Absolute Orientation)
 void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion);
-void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAceel);
+struct Coordinates ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel);
 
 // Position Methods
 void CorrectAccel(struct Coordinates accel, struct Coordinates grav);
@@ -19,7 +19,6 @@ void PrintDetailedDeadReckoning(struct Coordinates pos, struct Coordinates vel, 
 
 //Matrix Methods
 int InvertMatrix(float invOut[4][4]);
-
-
+void MatMul(float in4by1[4], float out4by1[4]);
 
 #endif

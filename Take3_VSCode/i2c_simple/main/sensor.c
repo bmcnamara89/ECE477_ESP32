@@ -82,14 +82,17 @@ void UpdatePosition(struct Coordinates correctedAccel)
 }
 
 
-void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coordinates correctedAccel)
+struct Coordinates ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel)
 {
+    struct Coordinates correctedAccel;
     float invOut[4][4];
     int didWork = InvertMatrix(invOut);
 
     float accelerationMatrix[4] = {uncorrectedAccel.x, uncorrectedAccel.y, uncorrectedAccel.z, 0};
 
-    float accelReferenced[4] = rotationMatrix * accelerationMatrix;
+    float accelReferenced[4];
+    
+    MatMul(accelerationMatrix, accelReferenced);
 
     correctedAccel.x = accelReferenced[0];
     correctedAccel.y = accelReferenced[1];
@@ -97,8 +100,10 @@ void ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAccel, struct Coor
 
     if (didWork == 0)
     {
-        printf("OH NOES!!\n");
+        printf("!Matrix Inverse Error!\n");
     }
+    
+    return correctedAccel;
 }
 
 void ConvertQuaternionToRotationMatrix(struct Quaternions quaternion)
@@ -320,4 +325,19 @@ int InvertMatrix(float invOut[4][4])
     }
 
     return 1;
+}
+
+void MatMul(float in4by1[4], float out4by1[4])
+{
+    out4by1[0] = rotationMatrix[0][0]*in4by1[0] + rotationMatrix[0][1]*in4by1[1] + 
+                 rotationMatrix[0][2]*in4by1[2] + rotationMatrix[0][3]*in4by1[3];
+
+    out4by1[1] = rotationMatrix[1][0]*in4by1[0] + rotationMatrix[1][1]*in4by1[1] + 
+                 rotationMatrix[1][2]*in4by1[2] + rotationMatrix[1][3]*in4by1[3];
+
+    out4by1[2] = rotationMatrix[2][0]*in4by1[0] + rotationMatrix[2][1]*in4by1[1] + 
+                 rotationMatrix[2][2]*in4by1[2] + rotationMatrix[2][3]*in4by1[3];
+
+    out4by1[3] = rotationMatrix[3][0]*in4by1[0] + rotationMatrix[3][1]*in4by1[1] + 
+                 rotationMatrix[3][2]*in4by1[2] + rotationMatrix[3][3]*in4by1[3];
 }

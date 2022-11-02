@@ -218,8 +218,8 @@ void app_main() {
         {
             inSwing = 0;
 
-            fakeReckoning(dps, dpnum);
-            //deadReckoning(dps, dpnum); //store in outputdatapoints
+            //fakeReckoning(dps, dpnum);
+            deadReckoning(dps, dpnum); //store in outputdatapoints
 
             free(dps);
             dpnum = 0; 
@@ -319,7 +319,10 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
 void pointReckoning(struct DataPoint dp)
 {
     ConvertQuaternionToRotationMatrix(dp.quat);
-
+    struct Coordinates correctedAccel = ConvertLocalToGlobalCoords(dp.linaccel);
+    globalTimeSinceLastPoint = dp.time - globalLastTime;
+    globalLastTime = dp.time;
+    UpdatePosition(correctedAccel);
 }
 
 //Initialize Global Swing Values on first Data Point
