@@ -6,6 +6,7 @@
 #include "driver/timer.h"
 #include "data_structures.h"
 #include "bluetooth.h"
+#include "sensor.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -27,7 +28,15 @@ void printDPS(struct DataPoint *dps, int numDPs);
 void fakeReckoning(struct DataPoint *dps, int numDPs);
 void print_buffer(struct DataOut* data, uint16_t len);
 void deadReckoning(struct DataPoint *dps, int numDPs);
+void pointReckoning(struct DataPoint dp);
+void firstPointReckoning(double t);
 
+//Global Variables
+struct Coordinates globalPosition;
+struct Coordinates globalVelocity;
+double globalLastTime;
+double globalTimeSinceLastPoint;
+float rotationMatrix [4][4];
 
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 {
@@ -139,9 +148,13 @@ void app_main() {
                 gotGravity = 0;
                 gotQuaternions = 0;
                 swingNum++;
-                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
-                swingStartTime = 0.0;
-                
+
+                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0); 
+                swingStartTime = 0.0; //timerSec;
+
+                gotGravity = 0;
+                gotQuaternions = 0;
+  
                 dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
             }
         }
@@ -209,8 +222,8 @@ void app_main() {
         {
             inSwing = 0;
 
-            fakeReckoning(dps, dpnum);
-            //deadReckoning(dps, dpnum); //store in outputdatapoints
+            //fakeReckoning(dps, dpnum);
+            deadReckoning(dps, dpnum); //store in outputdatapoints
 
             free(dps);
             dpnum = 0; 
@@ -261,8 +274,8 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs, 1.1);
 
+    set_transmit_buffer(outputData, numDPs, 1.1);
 }
 
 void print_buffer(struct DataOut* data, uint16_t len)
@@ -276,16 +289,54 @@ void print_buffer(struct DataOut* data, uint16_t len)
 void deadReckoning(struct DataPoint *dps, int numDPs)
 { 
     struct DataOut * outputData;  
-    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); //switch tempNUm for numDPs
+    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); 
 
-    //switched numDPs to tempNum for testing
     for(int i = 0; i < numDPs; i++)
     {
         //Call Dead Reckoning on Each Point
+        if(i > 0)
+        {
+            pointReckoning(dps[i]);
+        }
+        else
+        {
+            firstPointReckoning(dps[i].time); //First Data Point
+        }
+        outputData[i].pos.x = globalPosition.x;
+        outputData[i].pos.y = globalPosition.y;
+        outputData[i].pos.z = globalPosition.z;
+        outputData[i].quat.r = dps[i].quat.r;
+        outputData[i].quat.i = dps[i].quat.i;
+        outputData[i].quat.j = dps[i].quat.j;
+        outputData[i].quat.k = dps[i].quat.k;
+        outputData[i].time = dps[i].time;
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    //set_transmit_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs, 1.1);
+}
 
+void pointReckoning(struct DataPoint dp)
+{
+    ConvertQuaternionToRotationMatrix(dp.quat);
+    struct Coordinates correctedAccel = ConvertLocalToGlobalCoords(dp.linaccel);
+    globalTimeSinceLastPoint = dp.time - globalLastTime;
+    globalLastTime = dp.time;
+    UpdatePosition(correctedAccel);
+}
+
+//Initialize Global Swing Values on first Data Point
+void firstPointReckoning(double t)
+{
+    globalVelocity.x = 0.0;
+    globalVelocity.y = 0.0;
+    globalVelocity.z = 0.0;
+
+    globalPosition.x = 0.0;
+    globalPosition.y = 0.0;
+    globalPosition.z = 0.0;
+
+    globalLastTime = t;
+    globalTimeSinceLastPoint = t;
 }
