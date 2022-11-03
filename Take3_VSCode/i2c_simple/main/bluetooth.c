@@ -19,10 +19,9 @@
 
 
 
-
-
-uint8_t* storedData;
-uint16_t storedDataLen;
+uint8_t* storedData;            // This is our data buffer. This holds all the DataOut points, but converted to uint8_t's
+uint16_t storedDataLen;         // This keeps track of our data buffer's (storedData) total length in bytes
+uint16_t indexOfWindowStart;    // This keeps track of the index to start reading storedData at on the current transmission window
 
 uint8_t char1_str[] = {0x11,0x22,0x33};
 esp_gatt_char_prop_t a_property = 0;
@@ -137,27 +136,33 @@ struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
  * @param data - an array of floats to put in the transmit buffer
  * @param len - the length of the array of floats (number of floats, NOT NUMBER OF BYTES)
  */
-void set_transmit_buffer(struct DataOut* data, uint16_t len)
+void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContact)
 {
     // free the past data if any is present
     free (storedData);
+    storedData = NULL;
+
+    // We just put in new data, set the starting index to 0
+    indexOfWindowStart = 0;
 
     // Allocate the memory needed to store all these floats
-    storedDataLen = len * 36;
+    storedDataLen = len * 32 + 4;
     storedData = malloc(sizeof(uint8_t) * storedDataLen);
 
     // iterate through and convert floats to individual bytes to be easily transmitted
-    for (uint16_t i = 0; i < storedDataLen; i += 36)
+    for (uint16_t i = 0; i < storedDataLen - 4; i += 32)
     {
-        convert_float_using_special_method(storedData, data[i / 36].pos.x, i);
-        convert_float_using_special_method(storedData, data[i / 36].pos.y, i + 4);
-        convert_float_using_special_method(storedData, data[i / 36].pos.z, i + 8);
-        convert_float_using_special_method(storedData, data[i / 36].quat.r, i + 12);
-        convert_float_using_special_method(storedData, data[i / 36].quat.i, i + 16);
-        convert_float_using_special_method(storedData, data[i / 36].quat.j, i + 20);
-        convert_float_using_special_method(storedData, data[i / 36].quat.k, i + 24);
-        convert_double_using_special_method(storedData, data[i / 36].time, i + 28);
+        convert_float_using_special_method(storedData, data[i / 32].pos.x, i);
+        convert_float_using_special_method(storedData, data[i / 32].pos.y, i + 4);
+        convert_float_using_special_method(storedData, data[i / 32].pos.z, i + 8);
+        convert_float_using_special_method(storedData, data[i / 32].quat.r, i + 12);
+        convert_float_using_special_method(storedData, data[i / 32].quat.i, i + 16);
+        convert_float_using_special_method(storedData, data[i / 32].quat.j, i + 20);
+        convert_float_using_special_method(storedData, data[i / 32].quat.k, i + 24);
+        convert_float_using_special_method(storedData, data[i / 32].time, i + 28);
     }
+
+    convert_float_using_special_method(storedData, timeOfContact, storedDataLen - 4);
 }
 
 
@@ -387,22 +392,89 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
+        
+        /*
+            The ESP_GATTS_READ_EVT is called multiple times on reads > 22 bytes.
+            It's called over and over again, but param->read.offset increases with the bytes already sent out.
+            I use that to track how much is left to send.
+
+            Breakdown of what happens if we have > 600 bytes to send (sliding window from 463):
+                - Breaking into Window:
+                    - I break it into 'windows' that are of maximum 600 bytes long. 
+                    - The index of storedData that the window starts sending is kept track of by indexOfWindowStart
+                    - Every window, indexOfWindowStart is increased to the appropriate index of storedData, and then a new window is started
+                - Breaking a Window into smaller payloads:
+                    - Inside each window, it can only send 22 byte long payloads. 
+                    - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that window
+        */
+
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
-        // rsp.attr_value.len = 4;
-        // rsp.attr_value.value[0] = 0xde;
-        // rsp.attr_value.value[1] = 0xed;
-        // rsp.attr_value.value[2] = 0xbe;
-        // rsp.attr_value.value[3] = 0xef;
 
-        rsp.attr_value.len = storedDataLen;
-        for (uint16_t i = 0; i < storedDataLen; i++) {
-            rsp.attr_value.value[i] = storedData[i];
+        if (storedDataLen == 0) 
+        {
+            // Send back an empty response just so mobile app doesn't freak out
+            rsp.attr_value.len = 0;
+
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            return;
         }
+
+        /*
+            This stores the TOTAL number of bytes we'll send this window. It has a max of 600 (max packet size in BLE).
+        */
+        uint16_t totalNumberBytesToSendInThisWindow;
+
         
+        // Figure out how many bytes we need to send in total this window. 
+        if (storedDataLen - indexOfWindowStart >= 600)
+            totalNumberBytesToSendInThisWindow = 600;
+        else if (storedDataLen - indexOfWindowStart < 600)
+            totalNumberBytesToSendInThisWindow = storedDataLen - indexOfWindowStart;
+        else
+            totalNumberBytesToSendInThisWindow = storedDataLen;
+
+
+        // Get the number of bytes we have yet to send in this window
+        uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisWindow - param->read.offset);
+
+        // Check to see if the bytes we are trying to send are past our 600 byte limit
+        if (param->read.offset + 32 > 600) {
+            // If so, add the offset to indexOfWindowStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
+            indexOfWindowStart += param->read.offset;
+
+            // Send back an empty response just so mobile app doesn't freak out
+            rsp.attr_value.len = 0;
+
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            return;
+        }
+
+        // Make sure it doesn't go over 22 or else it will error
+        if (bytesLeftToSend > 22)
+            rsp.attr_value.len = 22;
+        else
+            rsp.attr_value.len = bytesLeftToSend;
+
+        // Copy rsp.attr_value.len number of bytes into the rsp container
+        for (uint16_t i = 0; i < rsp.attr_value.len; i++) {
+            rsp.attr_value.value[i] = storedData[i + param->read.offset + indexOfWindowStart];
+        }
+
+        // If ALL bytes have been sent, free the allocated memory
+        if (param->read.offset + rsp.attr_value.len + indexOfWindowStart >= storedDataLen) {
+            if (storedData) {
+                free(storedData);
+                storedData = NULL;
+            }
+            storedDataLen = 0;
+        }
+
+        // Send the response to the mobile app
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                     ESP_GATT_OK, &rsp);
+
         break;
     }
     case ESP_GATTS_WRITE_EVT: {

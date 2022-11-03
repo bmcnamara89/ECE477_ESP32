@@ -93,12 +93,15 @@ void app_main() {
     //I2C
 	uint8_t rx_data[23];
     setup_BNO_I2C();
+    printf("I2C Init...\n");
 
     //Timer
     setup_swing_Timer();
+    printf("Timer Init...\n");
 
     //Bluetooth
     init_ble();
+    printf("Bluetooth Init...\n");
 
     //Loop Variables
     int gotLinAccel = 0;
@@ -127,7 +130,6 @@ void app_main() {
         if(rx_data[9] == 0x04) //Linear Acceleration
         {
             gotLinAccel = 1;
-
             uint8_t q = 8;
 			uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
 			uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
@@ -143,13 +145,16 @@ void app_main() {
             if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
             {
                 inSwing = 1;
+                gotGravity = 0;
+                gotQuaternions = 0;
                 swingNum++;
+
                 timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0); 
                 swingStartTime = 0.0; //timerSec;
 
                 gotGravity = 0;
                 gotQuaternions = 0;
-                
+  
                 dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
             }
         }
@@ -252,7 +257,6 @@ void printDPS(struct DataPoint *dps, int numDPs)
 
 void fakeReckoning(struct DataPoint *dps, int numDPs)
 { 
-    int numDPs = 10;
     struct DataOut * outputData;  
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs);
 
@@ -270,8 +274,8 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs);
 
+    set_transmit_buffer(outputData, numDPs, 1.1);
 }
 
 void print_buffer(struct DataOut* data, uint16_t len)
@@ -310,8 +314,7 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs);
-
+    set_transmit_buffer(outputData, numDPs, 1.1);
 }
 
 void pointReckoning(struct DataPoint dp)
