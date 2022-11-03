@@ -310,6 +310,8 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
         outputData[i].quat.j = dps[i].quat.j;
         outputData[i].quat.k = dps[i].quat.k;
         outputData[i].time = dps[i].time;
+
+        //PrintCurrentPosition(globalPosition); //Used for Graphing on Processing
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);

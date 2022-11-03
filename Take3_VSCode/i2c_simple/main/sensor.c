@@ -140,6 +140,7 @@ void PrintCurrentPosition(struct Coordinates pos)
     printf("%f", pos.y);
     printf("/");
     printf("%f", pos.z);
+    printf("\n");
 }
 
 void PrintDetailedDeadReckoning(struct Coordinates pos, struct Coordinates vel, struct Coordinates accel)
