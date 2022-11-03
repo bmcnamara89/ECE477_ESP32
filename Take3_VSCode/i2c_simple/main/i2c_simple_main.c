@@ -144,8 +144,7 @@ void app_main() {
             {
                 inSwing = 1;
                 swingNum++;
-                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
-                //timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
+                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0); 
                 swingStartTime = 0.0; //timerSec;
 
                 gotGravity = 0;
@@ -253,12 +252,11 @@ void printDPS(struct DataPoint *dps, int numDPs)
 
 void fakeReckoning(struct DataPoint *dps, int numDPs)
 { 
-    int tempNum = 10;
+    int numDPs = 10;
     struct DataOut * outputData;  
-    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * tempNum); //switch tempNUm for numDPs
+    outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs);
 
-    //switched numDPs to tempNum for testing
-    for(int i = 0; i < tempNum; i++)
+    for(int i = 0; i < numDPs; i++)
     {
         outputData[i].pos.x = 0.362;
         outputData[i].pos.y = 4.77;
@@ -270,9 +268,9 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
         outputData[i].time = dps[i].time;
     }
 
-    printf("Buffer Filled: %d Data Points\n", tempNum);
-    print_buffer(outputData, tempNum);
-    set_transmit_buffer(outputData, tempNum);
+    printf("Buffer Filled: %d Data Points\n", numDPs);
+    print_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs);
 
 }
 

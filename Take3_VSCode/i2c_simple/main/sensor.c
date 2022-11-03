@@ -10,11 +10,6 @@ extern double globalLastTime;
 extern double globalTimeSinceLastPoint;
 extern float rotationMatrix [4][4];
 
-/**
- * @brief Corrects the raw acceleration readings and repopulates the passed in struct with the corrected values
- * 
- * @param accel the acceleration readings to correct. When the function call is finished this will now be populated with the corrected values
- */
 void CorrectAccel(struct Coordinates accel, struct Coordinates grav)
 {
     accel.x -= grav.x;
@@ -22,13 +17,6 @@ void CorrectAccel(struct Coordinates accel, struct Coordinates grav)
     accel.z -= grav.z;
 }
 
-
-/**
- * @brief Updates the current position estimate using Dead Reckoning
- * 
- * @param correctedAccel the acceleration after it has been corrected from gravity
- * @param timeSinceLastUpdate_us the time in microseconds since this method was last called.
- */
 void UpdatePosition(struct Coordinates correctedAccel)
 {
     double accelTermX, accelTermY, accelTermZ;
