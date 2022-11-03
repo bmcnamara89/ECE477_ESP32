@@ -146,11 +146,11 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContac
     indexOfIterationStart = 0;
 
     // Allocate the memory needed to store all these floats
-    storedDataLen = len * 32;
-    storedData = malloc(sizeof(uint8_t) * storedDataLen + 4);
+    storedDataLen = len * 32 + 4;
+    storedData = malloc(sizeof(uint8_t) * storedDataLen);
 
     // iterate through and convert floats to individual bytes to be easily transmitted
-    for (uint16_t i = 0; i < storedDataLen; i += 32)
+    for (uint16_t i = 0; i < storedDataLen - 4; i += 32)
     {
         convert_float_using_special_method(storedData, data[i / 32].pos.x, i);
         convert_float_using_special_method(storedData, data[i / 32].pos.y, i + 4);
