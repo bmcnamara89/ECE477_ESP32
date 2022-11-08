@@ -799,26 +799,26 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
     } while (0);
 }
 
- bool get_end_of_session()
+ int get_end_of_session()
  {
     if(mode_select == 0x0c)
     {
-        return TRUE
+        return 1;
     }
     else
     {
-        return FALSE
+        return 0;
     }
  }
 
- bool get_start()
+ int get_start()
  {
-    if(mode_select == 0x00 || 0x04 || 0x08)
+    if(mode_select == 0x00 || mode_select == 0x04 || mode_select == 0x08)
     {
-        return TRUE
+        return 1;
     }
     else
     {
-        return FALSE
+        return 0;
     }
  }
