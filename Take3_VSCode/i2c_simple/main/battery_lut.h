@@ -2,6 +2,14 @@
 #define BATTERY_LUT_H
 #include "esp_log.h"
 
+#include "driver/gpio.h"
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+
+#define DEFAULT_VREF      1100
+#define SAMPLES_TO_TAKE   4
+
+
 const uint16_t BATTERY_LUT[] = {
     3800,     ///3705,
     3780,     ///3696,
@@ -105,20 +113,9 @@ const uint16_t BATTERY_LUT[] = {
     2800 //16
 };
 
-void get_battery_percentage(uint16_t readAnalogValue) 
-{
-    for (uint8_t i = 0; i < 100; i++)
-    {
-        // keep iterating until we've gotten lower than the value in the LUT
-        if (readAnalogValue <= BATTERY_LUT[i])
-        {
-            // LUT is backwards, so do a subtraction
-            return 100 - i;
-        }
-    }
 
-    return 100;
-}
+void config_battery_read_pin();
+uint8_t get_battery_percentage();
 
 
 #endif
