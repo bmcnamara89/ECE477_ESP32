@@ -283,6 +283,8 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
     print_buffer(outputData, numDPs);
 
     set_transmit_buffer(outputData, numDPs, 1.1);
+
+    free(outputData);
 }
 
 void print_buffer(struct DataOut* data, uint16_t len)
@@ -324,6 +326,8 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
     set_transmit_buffer(outputData, numDPs, 1.1);
+
+    free(outputData);
 }
 
 void pointReckoning(struct DataPoint dp)
