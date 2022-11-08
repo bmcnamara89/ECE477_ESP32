@@ -90,6 +90,10 @@ void set_transmit_buffer(struct DataOut* outputData, uint16_t len, double timeOf
 void convert_float_using_special_method(uint8_t* storedData, float dataToConvert, uint16_t index);
 void convert_double_using_special_method(uint8_t* storedData, double dataToConvert, uint16_t index);
 
+//System Loop Control
+int get_end_of_session();
+int get_start();
+
 #endif
 
 

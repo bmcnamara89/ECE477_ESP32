@@ -127,9 +127,10 @@ void app_main() {
     
     while(1)
     {
-        if(get_start() == TRUE)
+        vTaskDelay(DELAY_MS/portTICK_RATE_MS);
+        if(get_start() == 1)
         {
-            while (get_end_of_session() == FALSE) 
+            while (get_end_of_session() == 0) 
             {
                 i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
 
