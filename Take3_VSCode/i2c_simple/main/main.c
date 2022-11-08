@@ -124,112 +124,119 @@ void app_main() {
     struct DataPoint *dps = NULL;
     int dpnum = 0;
 
-	while (1) {
-        i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
-
-        if(rx_data[9] == 0x04) //Linear Acceleration
-        {
-            gotLinAccel = 1;
-            uint8_t q = 8;
-			uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
-			uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
-			uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
-			x = qToFloat(x_raw, q);
-			y = qToFloat(y_raw, q);
-			z = qToFloat(z_raw, q);
-
-            linaccel.x = x;
-            linaccel.y = y;
-            linaccel.z = z;
-
-            if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
-            {
-                inSwing = 1;
-                gotGravity = 0;
-                gotQuaternions = 0;
-                swingNum++;
-
-                timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0); 
-                swingStartTime = 0.0; //timerSec;
-
-                gotGravity = 0;
-                gotQuaternions = 0;
-  
-                dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
-            }
-        }
-        else if(rx_data[9] == 0x06) //Gravity
-        {
-            gotGravity = 1;
-
-            uint8_t q = 8;
-			uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
-			uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
-			uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
-			x = qToFloat(x_raw, q);
-			y = qToFloat(y_raw, q);
-			z = qToFloat(z_raw, q);
-
-            grav.x = x;
-            grav.y = y;
-            grav.z = z;
-
-        }
-        else if(rx_data[9] == 0x05) //Quaternion
-        {
-            gotQuaternions = 1;
-
-            uint8_t q = 14;
-            uint16_t r_raw = (rx_data[20] << 8) | rx_data[19];
-            uint16_t i_raw = (rx_data[14] << 8) | rx_data[13];
-            uint16_t j_raw = (rx_data[16] << 8) | rx_data[15];
-            uint16_t k_raw = (rx_data[18] << 8) | rx_data[17];
-            r = qToFloat(r_raw, q);
-            i = qToFloat(i_raw, q);
-            j = qToFloat(j_raw, q);
-            k = qToFloat(k_raw, q);
-
-            quat.r = r;
-            quat.i = i;
-            quat.j = j;
-            quat.k = k;
-        }
-
-        if(gotLinAccel && gotGravity && gotQuaternions)
-        {
-            gotLinAccel = 0;
-            gotGravity = 0;
-            gotQuaternions = 0;
-
-            dp.quat = quat;
-            dp.grav = grav;
-            dp.linaccel = linaccel;
-            timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
-            dp.time = timerSec;
-            
-            //printDP(dp);
-
-            if(inSwing == 1)
-            {
-                dps[dpnum] = dp;
-                dpnum++;
-                //printf("Swing %d: from %.3f to %.3f of Length %.3f seconds\n", swingNum, swingStartTime, timerSec, timerSec - swingStartTime);
-            }
-        }
-        
-        timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec);
-        if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
-        {
-            inSwing = 0;
-
-            //fakeReckoning(dps, dpnum);
-            deadReckoning(dps, dpnum); //store in outputdatapoints
-
-            free(dps);
-            dpnum = 0; 
-        }
     
-	}
+    while(1)
+    {
+        if(get_start() == TRUE)
+        {
+            while (get_end_of_session() == FALSE) {
+                i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
+
+                if(rx_data[9] == 0x04) //Linear Acceleration
+                {
+                    gotLinAccel = 1;
+                    uint8_t q = 8;
+                    uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
+                    uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
+                    uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
+                    x = qToFloat(x_raw, q);
+                    y = qToFloat(y_raw, q);
+                    z = qToFloat(z_raw, q);
+
+                    linaccel.x = x;
+                    linaccel.y = y;
+                    linaccel.z = z;
+
+                    if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
+                    {
+                        inSwing = 1;
+                        gotGravity = 0;
+                        gotQuaternions = 0;
+                        swingNum++;
+
+                        timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0); 
+                        swingStartTime = 0.0; //timerSec;
+
+                        gotGravity = 0;
+                        gotQuaternions = 0;
+        
+                        dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
+                    }
+                }
+                else if(rx_data[9] == 0x06) //Gravity
+                {
+                    gotGravity = 1;
+
+                    uint8_t q = 8;
+                    uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
+                    uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
+                    uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
+                    x = qToFloat(x_raw, q);
+                    y = qToFloat(y_raw, q);
+                    z = qToFloat(z_raw, q);
+
+                    grav.x = x;
+                    grav.y = y;
+                    grav.z = z;
+
+                }
+                else if(rx_data[9] == 0x05) //Quaternion
+                {
+                    gotQuaternions = 1;
+
+                    uint8_t q = 14;
+                    uint16_t r_raw = (rx_data[20] << 8) | rx_data[19];
+                    uint16_t i_raw = (rx_data[14] << 8) | rx_data[13];
+                    uint16_t j_raw = (rx_data[16] << 8) | rx_data[15];
+                    uint16_t k_raw = (rx_data[18] << 8) | rx_data[17];
+                    r = qToFloat(r_raw, q);
+                    i = qToFloat(i_raw, q);
+                    j = qToFloat(j_raw, q);
+                    k = qToFloat(k_raw, q);
+
+                    quat.r = r;
+                    quat.i = i;
+                    quat.j = j;
+                    quat.k = k;
+                }
+
+                if(gotLinAccel && gotGravity && gotQuaternions)
+                {
+                    gotLinAccel = 0;
+                    gotGravity = 0;
+                    gotQuaternions = 0;
+
+                    dp.quat = quat;
+                    dp.grav = grav;
+                    dp.linaccel = linaccel;
+                    timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
+                    dp.time = timerSec;
+                    
+                    //printDP(dp);
+
+                    if(inSwing == 1)
+                    {
+                        dps[dpnum] = dp;
+                        dpnum++;
+                        //printf("Swing %d: from %.3f to %.3f of Length %.3f seconds\n", swingNum, swingStartTime, timerSec, timerSec - swingStartTime);
+                    }
+                }
+                
+                timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec);
+                if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
+                {
+                    inSwing = 0;
+
+                    //fakeReckoning(dps, dpnum);
+                    deadReckoning(dps, dpnum); //store in outputdatapoints
+
+                    free(dps);
+                    dpnum = 0; 
+                }
+            
+            }
+    
+   }        
 
 }
 

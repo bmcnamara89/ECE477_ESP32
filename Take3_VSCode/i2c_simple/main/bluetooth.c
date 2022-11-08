@@ -35,7 +35,7 @@ esp_attr_value_t gatts_demo_char1_val =
 };
 
 uint8_t adv_config_done = 0;
-uint8_t mode_select = 0;
+uint8_t mode_select = 0x0e;
 
 
 #ifdef CONFIG_SET_RAW_ADV_DATA
@@ -798,3 +798,27 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
         }
     } while (0);
 }
+
+ bool get_end_of_session()
+ {
+    if(mode_select == 0x0c)
+    {
+        return TRUE
+    }
+    else
+    {
+        return FALSE
+    }
+ }
+
+ bool get_start()
+ {
+    if(mode_select == 0x00 || 0x04 || 0x08)
+    {
+        return TRUE
+    }
+    else
+    {
+        return FALSE
+    }
+ }
