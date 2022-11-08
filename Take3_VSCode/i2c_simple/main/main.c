@@ -17,6 +17,7 @@
 #define DELAY_MS		1000
 #define TIMER_DIVIDER   (64)
 #define ACCEL_THRESHOLD 10.0
+#define BT_IGNORE 1 //Set to 1 to ignore waiting for start of session from app
 
 //Function Declarations
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
@@ -128,7 +129,7 @@ void app_main() {
     while(1)
     {
         vTaskDelay(DELAY_MS/portTICK_RATE_MS);
-        if(get_start() == 1)
+        if(get_start() == 1 || BT_IGNORE)
         {
             while (get_end_of_session() == 0) 
             {

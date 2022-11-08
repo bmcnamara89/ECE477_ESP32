@@ -655,7 +655,8 @@ void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         if (!param->write.is_prep){
             ESP_LOGI(GATTS_TAG, "GATT_WRITE_EVT, value len %d, value :", param->write.len);
             esp_log_buffer_hex(GATTS_TAG, param->write.value, param->write.len);
-            mode_select = param->write.value;
+            mode_select = (uint8_t) (*param->write.value);
+            //printf("ESP WRITE: %d\n", *param->write.value);
             if (gl_profile_tab[PROFILE_B_APP_ID].descr_handle == param->write.handle && param->write.len == 2){
                 uint16_t descr_value= param->write.value[1]<<8 | param->write.value[0];
                 if (descr_value == 0x0001){
