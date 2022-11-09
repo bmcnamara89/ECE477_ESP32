@@ -4,7 +4,7 @@
 void config_battery_read_pin()
 {
     adc1_config_width(ADC_WIDTH_BIT_12);
-    adc1_config_channel_atten(ADC_CHANNEL_3, ADC_ATTEN_DB_11); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB 
+    adc1_config_channel_atten(ADC_CHANNEL_7, ADC_ATTEN_DB_11); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB 
 
     esp_adc_cal_characteristics_t *adc_chars;
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
@@ -17,7 +17,7 @@ uint8_t get_battery_percentage()
 
     for (uint8_t i = 0; i < SAMPLES_TO_TAKE; i++) 
     {
-        readAnalogValue += adc1_get_raw((adc1_channel_t)ADC_CHANNEL_3); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB
+        readAnalogValue += adc1_get_raw((adc1_channel_t)ADC_CHANNEL_7); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB
     }
 
     // take the total read value and divide by the number of samples we took
