@@ -3,8 +3,8 @@
 
 void config_battery_read_pin()
 {
-    adc1_config_width(width);
-    adc1_config_channel_atten(ADC_CHANNEL_3, atten); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB 
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC_CHANNEL_3, ADC_ATTEN_DB_11); // change ADC_CHANNEL_3 to ADC_CHANNEL_7 when on PCB 
 
     esp_adc_cal_characteristics_t *adc_chars;
     adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
