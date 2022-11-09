@@ -4,6 +4,7 @@
 #include "esp_log.h"
 #include "driver/i2c.h"
 #include "driver/timer.h"
+#include "driver/gpio.h"
 #include "data_structures.h"
 #include "bluetooth.h"
 #include "sensor.h"
@@ -17,10 +18,15 @@
 #define DELAY_MS		1000
 #define TIMER_DIVIDER   (64)
 #define ACCEL_THRESHOLD 10.0
-#define BT_IGNORE 1 //Set to 1 to ignore waiting for start of session from app
+#define GPIO_RED        27
+#define GPIO_GREEN      26
+#define GPIO_BLUE       25
+#define BT_IGNORE       1 //Set to 1 to ignore waiting for start of session from app
 
 //Function Declarations
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
+void setup_GPIO();
+void configure_LED();
 void setup_BNO_I2C();
 void setup_swing_Timer();
 void printDP(struct DataPoint dp);
@@ -44,6 +50,23 @@ float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 	short signedPointVal = fixedPointValue;
 	float qFloat = signedPointVal * pow(2, (-1.0*qPoint));
 	return qFloat;
+}
+
+void setup_GPIO()
+{
+    configure_LED();
+}
+
+void configure_LED()
+{
+    gpio_reset_pin(GPIO_RED);
+    gpio_set_direction(GPIO_RED, GPIO_MODE_OUTPUT);
+
+    gpio_reset_pin(GPIO_GREEN);
+    gpio_set_direction(GPIO_GREEN, GPIO_MODE_OUTPUT);
+
+    gpio_reset_pin(GPIO_BLUE);
+    gpio_set_direction(GPIO_BLUE, GPIO_MODE_OUTPUT);
 }
 
 void setup_BNO_I2C()
@@ -91,6 +114,11 @@ void setup_swing_Timer()
 }
 
 void app_main() {
+    //GPIO
+    setup_GPIO();
+    gpio_set_level(GPIO_RED, 1); //Set to Red Initially
+    printf("GPIO Init...");
+
     //I2C
 	uint8_t rx_data[23];
     setup_BNO_I2C();
@@ -129,7 +157,7 @@ void app_main() {
     while(1)
     {
         vTaskDelay(DELAY_MS/portTICK_RATE_MS);
-        if(get_start() == 1 || BT_IGNORE)
+        if(BT_IGNORE || get_start())
         {
             while (get_end_of_session() == 0) 
             {
@@ -152,6 +180,8 @@ void app_main() {
 
                     if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
                     {
+                        gpio_set_level(GPIO_RED, 0);
+                        gpio_set_level(GPIO_GREEN, 1);
                         inSwing = 1;
                         gotGravity = 0;
                         gotQuaternions = 0;
