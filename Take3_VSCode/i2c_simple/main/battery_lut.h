@@ -10,7 +10,7 @@
 #define SAMPLES_TO_TAKE   4
 
 
-const uint16_t BATTERY_LUT[] = {
+static const uint16_t BATTERY_LUT[] = {
     3800,     ///3705,
     3780,     ///3696,
     3767,

@@ -8,6 +8,7 @@
 #include "data_structures.h"
 #include "bluetooth.h"
 #include "sensor.h"
+#include "battery_lut.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -131,6 +132,10 @@ void app_main() {
     //Bluetooth
     init_ble();
     printf("Bluetooth Init...\n");
+
+    //BatteryRead
+    config_battery_read_pin();
+    printf("Battery Read Pin Init...\n");
 
     //Loop Variables
     int gotLinAccel = 0;

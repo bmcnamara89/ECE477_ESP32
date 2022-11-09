@@ -15,7 +15,7 @@
 *
 ****************************************************************************/
 #include "bluetooth.h"
-
+#include "battery_lut.h"
 
 
 
@@ -408,9 +408,32 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
                     - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that window
         */
 
+
+        
+
+
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
+
+
+        /*
+            This block handles transmitting the battery percentage.
+            The if statement will not pass if this read occurs during a session (app won't request battery percent during a session).
+        */
+        if (!get_start()) 
+        { 
+            // If we made it here, it must be a battery read request, because app won't request any other data when not in a session
+            uint8_t battPercent = get_battery_percentage();
+
+            rsp.attr_value.len = 1;
+            rsp.attr_value.value[0] = battPercent;
+
+            esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id, ESP_GATT_OK, &rsp);
+            return;
+        }
+
+        // Everything past this point relates to sending the point data from dead reckoning/quaternions
 
         if (storedDataLen == 0) 
         {
