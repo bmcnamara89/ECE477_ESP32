@@ -93,6 +93,7 @@ void convert_double_using_special_method(uint8_t* storedData, double dataToConve
 //System Loop Control
 int get_end_of_session();
 int get_start();
+int get_ble();
 
 #endif
 

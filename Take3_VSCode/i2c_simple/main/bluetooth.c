@@ -36,6 +36,7 @@ esp_attr_value_t gatts_demo_char1_val =
 
 uint8_t adv_config_done = 0;
 uint8_t mode_select = 0x0e;
+uint8_t ble_flag = 0;
 
 
 #ifdef CONFIG_SET_RAW_ADV_DATA
@@ -257,6 +258,8 @@ void init_ble()
     if (local_mtu_ret){
         ESP_LOGE(GATTS_TAG, "set local  MTU failed, error code = %x", local_mtu_ret);
     }
+
+    ble_flag = 1;
 
     return;
 }
@@ -838,6 +841,18 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
  int get_start()
  {
     if(mode_select == 0x00 || mode_select == 0x04 || mode_select == 0x08)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+ }
+
+ int get_ble()
+ {
+    if(ble_flag == 1)
     {
         return 1;
     }
