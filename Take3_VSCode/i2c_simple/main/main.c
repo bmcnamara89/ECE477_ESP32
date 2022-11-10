@@ -9,6 +9,7 @@
 #include "bluetooth.h"
 #include "sensor.h"
 #include "battery_lut.h"
+#include "colors.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -28,6 +29,7 @@
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
 void setup_GPIO();
 void configure_LED();
+void set_LED(uint8_t color);
 void setup_BNO_I2C();
 void setup_swing_Timer();
 void printDP(struct DataPoint dp);
@@ -68,6 +70,26 @@ void configure_LED()
 
     gpio_reset_pin(GPIO_BLUE);
     gpio_set_direction(GPIO_BLUE, GPIO_MODE_OUTPUT);
+}
+
+void set_LED(uint8_t color)
+{
+    gpio_set_level(GPIO_RED, 0);
+    gpio_set_level(GPIO_GREEN, 0);
+    gpio_set_level(GPIO_BLUE, 0);
+
+    if(color == WHITE || color == RED || color == YELLOW || color == MAGENTA)
+    {
+        gpio_set_level(GPIO_RED, 1);
+    }
+    if(color == WHITE || color == GREEN || color == YELLOW || color == CYAN)
+    {
+        gpio_set_level(GPIO_GREEN, 1);
+    }
+    if(color == WHITE || color == BLUE || color == MAGENTA || color == CYAN)
+    {
+        gpio_set_level(GPIO_BLUE, 1);
+    }
 }
 
 void setup_BNO_I2C()
@@ -117,7 +139,7 @@ void setup_swing_Timer()
 void app_main() {
     //GPIO
     setup_GPIO();
-    gpio_set_level(GPIO_RED, 1); //Set to Red Initially
+    set_LED(YELLOW); //Set to Red Initially
     printf("GPIO Init...");
 
     //I2C
@@ -185,8 +207,7 @@ void app_main() {
 
                     if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
                     {
-                        gpio_set_level(GPIO_RED, 0);
-                        gpio_set_level(GPIO_GREEN, 1);
+                        set_LED(MAGENTA);
                         inSwing = 1;
                         gotGravity = 0;
                         gotQuaternions = 0;
@@ -264,6 +285,7 @@ void app_main() {
                 if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
                 {
                     inSwing = 0;
+                    set_LED(WHITE);
 
                     //fakeReckoning(dps, dpnum);
                     deadReckoning(dps, dpnum); //store in outputdatapoints
