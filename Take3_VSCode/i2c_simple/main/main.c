@@ -13,6 +13,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/queue.h"
 
 //static const char *TAG = "i2c-example";
 #define I2C_SLAVE_ADDR	0x4A
@@ -23,13 +24,17 @@
 #define GPIO_RED        27
 #define GPIO_GREEN      26
 #define GPIO_BLUE       25
+#define GPIO_INTR       4
 #define BT_IGNORE       1 //Set to 1 to ignore waiting for start of session from app
 
 //Function Declarations
+//static void buttonHandler();
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
 void setup_GPIO();
 void configure_LED();
 void set_LED(uint8_t color);
+void setup_button();
+void button_task(void *params);
 void setup_BNO_I2C();
 void setup_swing_Timer();
 void printDP(struct DataPoint dp);
@@ -47,6 +52,13 @@ struct Coordinates globalVelocity;
 double globalLastTime;
 double globalTimeSinceLastPoint;
 float rotationMatrix [4][4];
+xQueueHandle interruptQueue;
+
+static void IRAM_ATTR buttonHandler(void *args)
+{
+    int pinNumber = (int) args;
+    xQueueSendFromISR(interruptQueue, &pinNumber, NULL);
+}
 
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 {
@@ -58,6 +70,7 @@ float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 void setup_GPIO()
 {
     configure_LED();
+    setup_button();
 }
 
 void configure_LED()
@@ -89,6 +102,36 @@ void set_LED(uint8_t color)
     if(color == WHITE || color == BLUE || color == MAGENTA || color == CYAN)
     {
         gpio_set_level(GPIO_BLUE, 1);
+    }
+}
+
+void setup_button() 
+{
+    gpio_pad_select_gpio(GPIO_INTR);
+    gpio_set_direction(GPIO_INTR, GPIO_MODE_INPUT);
+    gpio_pulldown_en(GPIO_INTR);
+    gpio_pullup_dis(GPIO_INTR);
+    gpio_set_intr_type(GPIO_INTR, GPIO_INTR_POSEDGE);
+
+    interruptQueue = xQueueCreate(1, sizeof(int));
+    xTaskCreate(button_task, "Button_Task", 2048, NULL, 1, NULL);
+
+    gpio_install_isr_service(0);
+    gpio_isr_handler_add(GPIO_INTR, buttonHandler, (void *)GPIO_INTR);
+}
+
+void button_task(void *params)
+{
+    int pinNumber;
+    int count = 0;
+    while(1)
+    {
+        if(xQueueReceive(interruptQueue, &pinNumber, portMAX_DELAY))
+        {
+            count++;
+            printf("Button Task #%d\n", count);
+            set_LED(WHITE);
+        }
     }
 }
 
@@ -139,7 +182,7 @@ void setup_swing_Timer()
 void app_main() {
     //GPIO
     setup_GPIO();
-    set_LED(YELLOW); //Set to Red Initially
+    set_LED(RED); //Set to Red Initially
     printf("GPIO Init...");
 
     //I2C
@@ -184,6 +227,16 @@ void app_main() {
     while(1)
     {
         vTaskDelay(DELAY_MS/portTICK_RATE_MS);
+
+        if(get_ble())
+        {
+            set_LED(BLUE);
+        }
+        else
+        {
+            set_LED(RED);
+        }
+
         if(BT_IGNORE || get_start())
         {
             while (get_end_of_session() == 0) 
@@ -285,7 +338,7 @@ void app_main() {
                 if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
                 {
                     inSwing = 0;
-                    set_LED(WHITE);
+                    set_LED(GREEN);
 
                     //fakeReckoning(dps, dpnum);
                     deadReckoning(dps, dpnum); //store in outputdatapoints
