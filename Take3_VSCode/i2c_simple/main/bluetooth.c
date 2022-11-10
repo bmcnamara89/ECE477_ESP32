@@ -864,3 +864,23 @@ void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp
         return 0;
     }
  }
+
+ int get_mode()
+ {
+    if(mode_select == 0x00)
+    {
+        return 1; //backhand
+    }
+    else if(mode_select == 0x04)
+    {
+        return 2; //forehand
+    }
+    else if(mode_select == 0x08)
+    {
+        return 3; //serve
+    }
+    else
+    {
+        return 0; //end of session or error
+    }
+ }
