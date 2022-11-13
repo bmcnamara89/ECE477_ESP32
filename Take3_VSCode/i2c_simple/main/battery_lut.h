@@ -7,7 +7,7 @@
 #include "esp_adc_cal.h"
 
 #define DEFAULT_VREF      1100
-#define SAMPLES_TO_TAKE   4
+#define SAMPLES_TO_TAKE   8
 
 
 static const uint16_t BATTERY_LUT[] = {
