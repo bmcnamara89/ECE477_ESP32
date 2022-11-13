@@ -23,9 +23,14 @@ uint8_t get_battery_percentage()
     // take the total read value and divide by the number of samples we took
     readAnalogValue /= SAMPLES_TO_TAKE;
 
+    // special case for if the battery is being charged
+    if (readAnalogValue >= 4090) {
+        return 101;
+    }
+
     for (uint8_t i = 0; i < 100; i++)
     {
-        // keep iterating until we've gotten lower than the value in the LUT
+        // keep iterating until we've gotten higher than the value in the LUT
         if (readAnalogValue >= BATTERY_LUT[i])
         {
             // LUT is backwards, so do a subtraction
