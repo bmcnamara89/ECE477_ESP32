@@ -21,9 +21,9 @@
 #define DELAY_MS		1000
 #define TIMER_DIVIDER   (64)
 #define ACCEL_THRESHOLD 10.0
-#define GPIO_RED        27
-#define GPIO_GREEN      26
-#define GPIO_BLUE       25
+#define GPIO_RED        25 //27
+#define GPIO_GREEN      27 //26
+#define GPIO_BLUE       26 //25
 #define GPIO_INTR       4
 #define BT_IGNORE       0 //Set to 1 to ignore waiting for start of session from app
 
