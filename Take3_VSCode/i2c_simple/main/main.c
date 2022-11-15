@@ -25,7 +25,7 @@
 #define GPIO_GREEN      26
 #define GPIO_BLUE       25
 #define GPIO_INTR       4
-#define BT_IGNORE       1 //Set to 1 to ignore waiting for start of session from app
+#define BT_IGNORE       0 //Set to 1 to ignore waiting for start of session from app
 
 //Function Declarations
 //static void buttonHandler();
@@ -183,7 +183,7 @@ void app_main() {
     //GPIO
     setup_GPIO();
     set_LED(RED); //Set to Red Initially
-    printf("GPIO Init...");
+    printf("GPIO Init...\n");
 
     //I2C
 	uint8_t rx_data[23];
@@ -239,6 +239,19 @@ void app_main() {
 
         if(BT_IGNORE || get_start())
         {
+            if(get_mode() == 1)
+            {
+                set_LED(MAGENTA); //backhand
+            }
+            else if(get_mode() == 2)
+            {
+                set_LED(CYAN); //forehand
+            }
+            else if(get_mode() == 3)
+            {
+                set_LED(GREEN); //serve
+            }
+            
             while (get_end_of_session() == 0) 
             {
                 i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
@@ -260,7 +273,7 @@ void app_main() {
 
                     if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
                     {
-                        set_LED(MAGENTA);
+                        //set_LED(WHITE);
                         inSwing = 1;
                         gotGravity = 0;
                         gotQuaternions = 0;
@@ -338,7 +351,7 @@ void app_main() {
                 if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
                 {
                     inSwing = 0;
-                    set_LED(GREEN);
+                    
 
                     //fakeReckoning(dps, dpnum);
                     deadReckoning(dps, dpnum); //store in outputdatapoints
