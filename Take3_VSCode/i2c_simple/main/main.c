@@ -20,12 +20,12 @@
 #define TIMEOUT_MS		1000
 #define DELAY_MS		1000
 #define TIMER_DIVIDER   (64)
-#define ACCEL_THRESHOLD 10.0
+#define ACCEL_THRESHOLD 40.0 //m/s/s
+#define IMPACT_THRESH   40.0
 #define GPIO_RED        25 //27
 #define GPIO_GREEN      27 //26
 #define GPIO_BLUE       26 //25
 #define GPIO_INTR       4
-#define BT_IGNORE       0 //Set to 1 to ignore waiting for start of session from app
 
 //Function Declarations
 //static void buttonHandler();
@@ -33,6 +33,7 @@ float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
 void setup_GPIO();
 void configure_LED();
 void set_LED(uint8_t color);
+void mode_LED(uint8_t mode);
 void setup_button();
 void button_task(void *params);
 void setup_BNO_I2C();
@@ -102,6 +103,26 @@ void set_LED(uint8_t color)
     if(color == WHITE || color == BLUE || color == MAGENTA || color == CYAN)
     {
         gpio_set_level(GPIO_BLUE, 1);
+    }
+}
+
+void mode_LED(uint8_t mode)
+{
+    if(mode == 1)
+    {
+        set_LED(MAGENTA); //backhand
+    }
+    else if(mode == 2)
+    {
+        set_LED(CYAN); //forehand
+    }
+    else if(mode == 3)
+    {
+        set_LED(GREEN); //serve
+    }
+    else
+    {
+        set_LED(WHITE); //UNDEFINED MODE
     }
 }
 
@@ -222,7 +243,6 @@ void app_main() {
 
     struct DataPoint *dps = NULL;
     int dpnum = 0;
-
     
     while(1)
     {
@@ -237,8 +257,10 @@ void app_main() {
             set_LED(RED);
         }
 
-        if(BT_IGNORE || get_start())
+        if(get_start())
         {
+            mode_LED(get_mode());
+            /*
             if(get_mode() == 1)
             {
                 set_LED(MAGENTA); //backhand
@@ -250,12 +272,12 @@ void app_main() {
             else if(get_mode() == 3)
             {
                 set_LED(GREEN); //serve
-            }
+            }*/
             
             while (get_end_of_session() == 0) 
             {
                 i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
-
+                
                 if(rx_data[9] == 0x04) //Linear Acceleration
                 {
                     gotLinAccel = 1;
@@ -273,7 +295,7 @@ void app_main() {
 
                     if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
                     {
-                        //set_LED(WHITE);
+                        set_LED(YELLOW);
                         inSwing = 1;
                         gotGravity = 0;
                         gotQuaternions = 0;
@@ -343,6 +365,8 @@ void app_main() {
                     {
                         dps[dpnum] = dp;
                         dpnum++;
+
+
                         //printf("Swing %d: from %.3f to %.3f of Length %.3f seconds\n", swingNum, swingStartTime, timerSec, timerSec - swingStartTime);
                     }
                 }
@@ -351,6 +375,7 @@ void app_main() {
                 if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
                 {
                     inSwing = 0;
+                    mode_LED(get_mode());
                     
 
                     //fakeReckoning(dps, dpnum);
@@ -393,23 +418,41 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
 { 
     struct DataOut * outputData;  
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs);
+    float maxDiff = 0;
+    float currDiff = 0;
+    float impactTime = 0.0;
 
     for(int i = 0; i < numDPs; i++)
     {
-        outputData[i].pos.x = 0.362;
-        outputData[i].pos.y = 4.77;
-        outputData[i].pos.z = 20.001;
+        outputData[i].pos.x = dps[i].linaccel.x;
+        outputData[i].pos.y = dps[i].linaccel.y;
+        outputData[i].pos.z = dps[i].linaccel.z;
         outputData[i].quat.r = dps[i].quat.r;
         outputData[i].quat.i = dps[i].quat.i;
         outputData[i].quat.j = dps[i].quat.j;
         outputData[i].quat.k = dps[i].quat.k;
         outputData[i].time = dps[i].time;
+
+        if(i > 0)
+        {   
+            currDiff = abs(getMagnitude(dps[i].linaccel.x, dps[i].linaccel.y, 0) - getMagnitude(dps[i-1].linaccel.x, dps[i-1].linaccel.y, 0));
+            if(currDiff > maxDiff)
+            {
+                maxDiff = currDiff;
+                impactTime = dps[i].time;
+            }
+        }
+    }
+
+    if(maxDiff < IMPACT_THRESH)
+    {
+        impactTime = -1.0;
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
 
-    set_transmit_buffer(outputData, numDPs, 1.1);
+    set_transmit_buffer(outputData, numDPs, impactTime);
 
     free(outputData);
 }
@@ -426,6 +469,9 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
 { 
     struct DataOut * outputData;  
     outputData = (struct DataOut *) malloc(sizeof(struct DataOut) * numDPs); 
+    float maxDiff = 0;
+    float currDiff = 0;
+    float impactTime = 0.0;
 
     for(int i = 0; i < numDPs; i++)
     {
@@ -448,11 +494,25 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
         outputData[i].time = dps[i].time;
 
         //PrintCurrentPosition(globalPosition); //Used for Graphing on Processing
+            if(i > 0)
+        {   
+            currDiff = abs(getMagnitude(dps[i].linaccel.x, dps[i].linaccel.y, 0) - getMagnitude(dps[i-1].linaccel.x, dps[i-1].linaccel.y, 0));
+            if(currDiff > maxDiff)
+            {
+                maxDiff = currDiff;
+                impactTime = dps[i].time;
+            }
+        }
+    }
+
+    if(maxDiff < IMPACT_THRESH)
+    {
+        impactTime = -1.0;
     }
 
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs, 1.1);
+    set_transmit_buffer(outputData, numDPs, impactTime);
 
     free(outputData);
 }
