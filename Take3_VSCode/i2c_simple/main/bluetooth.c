@@ -23,6 +23,8 @@ uint8_t* storedData;            // This is our data buffer. This holds all the D
 uint16_t storedDataLen;         // This keeps track of our data buffer's (storedData) total length in bytes
 uint16_t indexOfWindowStart;    // This keeps track of the index to start reading storedData at on the current transmission window
 
+uint16_t read_mtu = 22;
+
 uint8_t char1_str[] = {0x11,0x22,0x33};
 esp_gatt_char_prop_t a_property = 0;
 esp_gatt_char_prop_t b_property = 0;
@@ -82,8 +84,8 @@ esp_ble_adv_data_t scan_rsp_data = {
     .set_scan_rsp = true,
     .include_name = true,
     .include_txpower = true,
-    //.min_interval = 0x0006,
-    //.max_interval = 0x0010,
+    .min_interval = 0x0006,
+    .max_interval = 0x0010,
     .appearance = 0x00,
     .manufacturer_len = 0, //TEST_MANUFACTURER_DATA_LEN,
     .p_manufacturer_data =  NULL, //&test_manufacturer[0],
@@ -397,7 +399,7 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
         
         /*
-            The ESP_GATTS_READ_EVT is called multiple times on reads > 22 bytes.
+            The ESP_GATTS_READ_EVT is called multiple times on reads > read_mtu bytes.
             It's called over and over again, but param->read.offset increases with the bytes already sent out.
             I use that to track how much is left to send.
 
@@ -407,18 +409,14 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
                     - The index of storedData that the window starts sending is kept track of by indexOfWindowStart
                     - Every window, indexOfWindowStart is increased to the appropriate index of storedData, and then a new window is started
                 - Breaking a Window into smaller payloads:
-                    - Inside each window, it can only send 22 byte long payloads. 
+                    - Inside each window, it can only send read_mtu byte long payloads. 
                     - These are kept track of using param->read.offset, which will have a value of < 600, tracking how many bytes have been sent that window
         */
-
-
-        
 
 
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
-
 
         /*
             This block handles transmitting the battery percentage.
@@ -447,6 +445,8 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
             return;
         }
 
+
+
         /*
             This stores the TOTAL number of bytes we'll send this window. It has a max of 600 (max packet size in BLE).
         */
@@ -466,7 +466,7 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         uint16_t bytesLeftToSend = (totalNumberBytesToSendInThisWindow - param->read.offset);
 
         // Check to see if the bytes we are trying to send are past our 600 byte limit
-        if (param->read.offset + 32 > 600) {
+        if (param->read.offset + 105 > 600) {
             // If so, add the offset to indexOfWindowStart so that our next ESP_GATTS_READ_EVT reads at the start of what we didn't send yet
             indexOfWindowStart += param->read.offset;
 
@@ -478,8 +478,8 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         }
 
         // Make sure it doesn't go over 22 or else it will error
-        if (bytesLeftToSend > 22)
-            rsp.attr_value.len = 22;
+        if (bytesLeftToSend > read_mtu)
+            rsp.attr_value.len = read_mtu;
         else
             rsp.attr_value.len = bytesLeftToSend;
 
@@ -496,6 +496,8 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
             }
             storedDataLen = 0;
         }
+
+
 
         // Send the response to the mobile app
         esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
@@ -555,6 +557,7 @@ void gatts_profile_a_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         break;
     case ESP_GATTS_MTU_EVT:
         ESP_LOGI(GATTS_TAG, "ESP_GATTS_MTU_EVT, MTU %d", param->mtu.mtu);
+        read_mtu = param->mtu.mtu - 1;
         break;
     case ESP_GATTS_UNREG_EVT:
         break;
