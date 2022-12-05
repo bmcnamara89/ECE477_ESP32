@@ -30,6 +30,8 @@
 //Function Declarations
 //static void buttonHandler();
 float qToFloat(uint16_t fixedPointValue, uint8_t qPoint);
+float q8ToFloat(uint16_t fixedPointValue);
+float q14ToFloat(uint16_t fixedPointValue);
 void setup_GPIO();
 void configure_LED();
 void set_LED(uint8_t color);
@@ -67,6 +69,23 @@ float qToFloat(uint16_t fixedPointValue, uint8_t qPoint)
 	float qFloat = signedPointVal * pow(2, (-1.0*qPoint));
 	return qFloat;
 }
+
+
+float q8ToFloat(uint16_t fixedPointValue)
+{
+	short signedPointVal = fixedPointValue;
+	float qFloat = signedPointVal * 0.00390625;
+	return qFloat;
+}
+
+
+float q14ToFloat(uint16_t fixedPointValue)
+{
+	short signedPointVal = fixedPointValue;
+	float qFloat = signedPointVal * 0.00006103515625;
+	return qFloat;
+}
+
 
 void setup_GPIO()
 {
@@ -281,13 +300,16 @@ void app_main() {
                 if(rx_data[9] == 0x04) //Linear Acceleration
                 {
                     gotLinAccel = 1;
-                    uint8_t q = 8;
+                    // uint8_t q = 8;
                     uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
                     uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
                     uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
-                    x = qToFloat(x_raw, q);
-                    y = qToFloat(y_raw, q);
-                    z = qToFloat(z_raw, q);
+                    // x = qToFloat(x_raw, q);
+                    // y = qToFloat(y_raw, q);
+                    // z = qToFloat(z_raw, q);
+                    x = q8ToFloat(x_raw);
+                    y = q8ToFloat(y_raw);
+                    z = q8ToFloat(z_raw);
 
                     linaccel.x = x;
                     linaccel.y = y;
@@ -310,36 +332,43 @@ void app_main() {
                         dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
                     }
                 }
-                else if(rx_data[9] == 0x06) //Gravity
+                else if(inSwing == 1 && rx_data[9] == 0x06) //Gravity
                 {
                     gotGravity = 1;
 
-                    uint8_t q = 8;
+                    // uint8_t q = 8;
                     uint16_t x_raw = (rx_data[14] << 8) | rx_data[13];
                     uint16_t y_raw = (rx_data[16] << 8) | rx_data[15];
                     uint16_t z_raw = (rx_data[18] << 8) | rx_data[17];
-                    x = qToFloat(x_raw, q);
-                    y = qToFloat(y_raw, q);
-                    z = qToFloat(z_raw, q);
+                    // x = qToFloat(x_raw, q);
+                    // y = qToFloat(y_raw, q);
+                    // z = qToFloat(z_raw, q);
+                    x = q8ToFloat(x_raw);
+                    y = q8ToFloat(y_raw);
+                    z = q8ToFloat(z_raw);
 
                     grav.x = x;
                     grav.y = y;
                     grav.z = z;
 
                 }
-                else if(rx_data[9] == 0x05) //Quaternion
+                else if(inSwing == 1 && rx_data[9] == 0x05) //Quaternion
                 {
                     gotQuaternions = 1;
 
-                    uint8_t q = 14;
+                    // uint8_t q = 14;
                     uint16_t r_raw = (rx_data[20] << 8) | rx_data[19];
                     uint16_t i_raw = (rx_data[14] << 8) | rx_data[13];
                     uint16_t j_raw = (rx_data[16] << 8) | rx_data[15];
                     uint16_t k_raw = (rx_data[18] << 8) | rx_data[17];
-                    r = qToFloat(r_raw, q);
-                    i = qToFloat(i_raw, q);
-                    j = qToFloat(j_raw, q);
-                    k = qToFloat(k_raw, q);
+                    // r = qToFloat(r_raw, q);
+                    // i = qToFloat(i_raw, q);
+                    // j = qToFloat(j_raw, q);
+                    // k = qToFloat(k_raw, q);
+                    r = q14ToFloat(r_raw);
+                    i = q14ToFloat(i_raw);
+                    j = q14ToFloat(j_raw);
+                    k = q14ToFloat(k_raw);
 
                     quat.r = r;
                     quat.i = i;
@@ -347,7 +376,7 @@ void app_main() {
                     quat.k = k;
                 }
 
-                if(gotLinAccel && gotGravity && gotQuaternions)
+                if(gotQuaternions && gotLinAccel && gotGravity)
                 {
                     gotLinAccel = 0;
                     gotGravity = 0;
