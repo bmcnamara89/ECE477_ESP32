@@ -17,6 +17,7 @@
 #include "esp_bt_defs.h"
 #include "esp_bt_main.h"
 #include "esp_gatt_common_api.h"
+#include "driver/i2c.h"
 
 #include "sdkconfig.h"
 #include "data_structures.h"
@@ -82,7 +83,7 @@ void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
 
 void example_write_event_env(esp_gatt_if_t gatts_if, prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
 void example_exec_write_event_env(prepare_type_env_t *prepare_write_env, esp_ble_gatts_cb_param_t *param);
-
+float qToFloatQuaternion(uint16_t fixedPointValue);
 
 void set_transmit_buffer(struct DataOut* outputData, uint16_t len, double timeOfContact);
 

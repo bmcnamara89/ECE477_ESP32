@@ -128,7 +128,12 @@ struct gatts_profile_inst gl_profile_tab[PROFILE_NUM] = {
 
 
 
-
+float qToFloatQuaternion(uint16_t fixedPointValue)
+{
+	short signedPointVal = fixedPointValue;
+	float qFloat = signedPointVal * 0.00006103515625;
+	return qFloat;
+}
 
 /**
  * @brief This sets data to our transmit buffer. 
@@ -669,16 +674,65 @@ void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         break;
     case ESP_GATTS_READ_EVT: {
         ESP_LOGI(GATTS_TAG, "GATT_READ_EVT, conn_id %d, trans_id %d, handle %d\n", param->read.conn_id, param->read.trans_id, param->read.handle);
+        // esp_gatt_rsp_t rsp;
+        // memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
+        // rsp.attr_value.handle = param->read.handle;
+        // rsp.attr_value.len = 4;
+        // rsp.attr_value.value[0] = 0xde;
+        // rsp.attr_value.value[1] = 0xed;
+        // rsp.attr_value.value[2] = 0xbe;
+        // rsp.attr_value.value[3] = 0xef;
+        // esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
+        //                             ESP_GATT_OK, &rsp);
+
         esp_gatt_rsp_t rsp;
         memset(&rsp, 0, sizeof(esp_gatt_rsp_t));
         rsp.attr_value.handle = param->read.handle;
-        rsp.attr_value.len = 4;
-        rsp.attr_value.value[0] = 0xde;
-        rsp.attr_value.value[1] = 0xed;
-        rsp.attr_value.value[2] = 0xbe;
-        rsp.attr_value.value[3] = 0xef;
-        esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
+        rsp.attr_value.len = 16;
+        uint8_t burns = 0;
+	    uint8_t rx_data[23];
+        while (1) 
+        {
+            i2c_master_read_from_device(I2C_NUM_0, 0x4A, rx_data, 23, 1000/portTICK_RATE_MS);
+
+            if(rx_data[9] == 0x05) //Quaternion
+            {
+                if (burns <= 3) {
+                    continue;
+                }
+
+                burns ++;
+
+                uint16_t r_raw = (rx_data[20] << 8) | rx_data[19];
+                uint16_t i_raw = (rx_data[14] << 8) | rx_data[13];
+                uint16_t j_raw = (rx_data[16] << 8) | rx_data[15];
+                uint16_t k_raw = (rx_data[18] << 8) | rx_data[17];
+
+                float r = qToFloatQuaternion(r_raw);
+                float i = qToFloatQuaternion(i_raw);
+                float j = qToFloatQuaternion(j_raw);
+                float k = qToFloatQuaternion(k_raw);
+
+                uint8_t buff[16];
+
+                convert_float_using_special_method(buff, r, 0);
+                convert_float_using_special_method(buff, i, 4);
+                convert_float_using_special_method(buff, j, 8);
+                convert_float_using_special_method(buff, k, 12);
+
+                for (uint8_t i = 0; i < 16; i++)
+                {
+                    rsp.attr_value.value[i] = buff[i];
+                }
+
+                esp_ble_gatts_send_response(gatts_if, param->read.conn_id, param->read.trans_id,
                                     ESP_GATT_OK, &rsp);
+
+                break;
+            }
+        }
+
+
         break;
     }
     case ESP_GATTS_WRITE_EVT: {
