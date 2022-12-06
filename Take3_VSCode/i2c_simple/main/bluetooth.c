@@ -695,13 +695,15 @@ void gatts_profile_b_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gat
         {
             i2c_master_read_from_device(I2C_NUM_0, 0x4A, rx_data, 23, 1000/portTICK_RATE_MS);
 
+
             if(rx_data[9] == 0x05) //Quaternion
             {
+                burns ++;
+
                 if (burns <= 3) {
                     continue;
                 }
 
-                burns ++;
 
                 uint16_t r_raw = (rx_data[20] << 8) | rx_data[19];
                 uint16_t i_raw = (rx_data[14] << 8) | rx_data[13];
