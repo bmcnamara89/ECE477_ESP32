@@ -144,7 +144,7 @@ float qToFloatQuaternion(uint16_t fixedPointValue)
  * @param data - an array of floats to put in the transmit buffer
  * @param len - the length of the array of floats (number of floats, NOT NUMBER OF BYTES)
  */
-void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContact)
+void set_transmit_buffer(struct DataOut* data, uint16_t len, float timeOfContact, float contactSpeed)
 {
     // free the past data if any is present
     free (storedData);
@@ -154,11 +154,11 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContac
     indexOfWindowStart = 0;
 
     // Allocate the memory needed to store all these floats
-    storedDataLen = len * 32 + 4;
+    storedDataLen = len * 32 + 4 + 4;
     storedData = malloc(sizeof(uint8_t) * storedDataLen);
 
     // iterate through and convert floats to individual bytes to be easily transmitted
-    for (uint16_t i = 0; i < storedDataLen - 4; i += 32)
+    for (uint16_t i = 0; i < storedDataLen - 8; i += 32)
     {
         convert_float_using_special_method(storedData, data[i / 32].pos.x, i);
         convert_float_using_special_method(storedData, data[i / 32].pos.y, i + 4);
@@ -170,7 +170,8 @@ void set_transmit_buffer(struct DataOut* data, uint16_t len, double timeOfContac
         convert_float_using_special_method(storedData, data[i / 32].time, i + 28);
     }
 
-    convert_float_using_special_method(storedData, timeOfContact, storedDataLen - 4);
+    convert_float_using_special_method(storedData, timeOfContact, storedDataLen - 8);
+    convert_float_using_special_method(storedData, contactSpeed,  storedDataLen - 4);
 }
 
 

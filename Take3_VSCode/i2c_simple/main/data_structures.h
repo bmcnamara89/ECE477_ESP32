@@ -35,6 +35,7 @@ struct DataPoint {
     struct Quaternions quat;
     struct Coordinates linaccel;
     struct Coordinates grav;
+    float  speed;
     double time;
 };
 

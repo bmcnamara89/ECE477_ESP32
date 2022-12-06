@@ -385,6 +385,7 @@ void app_main() {
                     dp.quat = quat;
                     dp.grav = grav;
                     dp.linaccel = linaccel;
+                    dp.speed = getMagnitude(globalVelocity.x, globalVelocity.y, globalVelocity.z);
                     timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec); 
                     dp.time = timerSec;
                     
@@ -413,11 +414,8 @@ void app_main() {
                     free(dps);
                     dpnum = 0; 
                 }
-            
             }
-    
-        }        
-
+        }
     }
 }
 
@@ -450,6 +448,7 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
     float maxDiff = 0;
     float currDiff = 0;
     float impactTime = 0.0;
+    float contactSpeed = 0.0;
 
     for(int i = 0; i < numDPs; i++)
     {
@@ -469,6 +468,7 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
             {
                 maxDiff = currDiff;
                 impactTime = dps[i].time;
+                contactSpeed = dps[i].speed;
             }
         }
     }
@@ -481,7 +481,7 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
     printf("Buffer Filled: %d Data Points\n", numDPs);
     print_buffer(outputData, numDPs);
 
-    set_transmit_buffer(outputData, numDPs, impactTime);
+    set_transmit_buffer(outputData, numDPs, impactTime, contactSpeed);
 
     free(outputData);
 }
