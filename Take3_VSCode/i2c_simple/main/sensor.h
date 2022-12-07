@@ -9,7 +9,7 @@ struct Coordinates ConvertLocalToGlobalCoords(struct Coordinates uncorrectedAcce
 
 // Position Methods
 void CorrectAccel(struct Coordinates accel, struct Coordinates grav);
-void UpdatePosition(struct Coordinates correctedAccel);
+float UpdatePosition(struct Coordinates correctedAccel);
 
 // Print Methods
 void PrintGravityVector(struct Coordinates gravity);

@@ -16,16 +16,20 @@
 #include "freertos/queue.h"
 
 //static const char *TAG = "i2c-example";
-#define I2C_SLAVE_ADDR	0x4A
-#define TIMEOUT_MS		1000
-#define DELAY_MS		1000
-#define TIMER_DIVIDER   (64)
-#define ACCEL_THRESHOLD 40.0 //m/s/s
-#define IMPACT_THRESH   40.0
-#define GPIO_RED        25 //27
-#define GPIO_GREEN      27 //26
-#define GPIO_BLUE       26 //25
-#define GPIO_INTR       4
+#define I2C_SLAVE_ADDR	    0x4A
+#define TIMEOUT_MS		    1000
+#define DELAY_MS		    1000
+#define TIMER_DIVIDER       (64)
+#define SWING_TIME          0.4 //s
+#define TRANSMIT_TIME       2.0 //s
+#define FOREHAND_THRESHOLD  40.0 //m/s/s
+#define BACKHAND_THRESHOLD  30.0 //m/s/s
+#define SERVE_THRESHOLD     25.0 //m/s/s
+#define IMPACT_THRESH       20.0
+#define GPIO_RED            25 //27
+#define GPIO_GREEN          27 //26
+#define GPIO_BLUE           26 //25
+#define GPIO_INTR           4
 
 //Function Declarations
 //static void buttonHandler();
@@ -46,8 +50,9 @@ void printDPS(struct DataPoint *dps, int numDPs);
 void fakeReckoning(struct DataPoint *dps, int numDPs);
 void print_buffer(struct DataOut* data, uint16_t len);
 void deadReckoning(struct DataPoint *dps, int numDPs);
-void pointReckoning(struct DataPoint dp);
+float pointReckoning(struct DataPoint dp);
 void firstPointReckoning(double t);
+float set_thresh(int mode);
 
 //Global Variables
 struct Coordinates globalPosition;
@@ -90,7 +95,7 @@ float q14ToFloat(uint16_t fixedPointValue)
 void setup_GPIO()
 {
     configure_LED();
-    setup_button();
+    //setup_button();
 }
 
 void configure_LED()
@@ -257,11 +262,14 @@ void app_main() {
 
     //Swing Detection
     int swingNum = 0;
-    int inSwing = 0;
+    int swingState = 0; //0 = not in swing; 1 = in swing; 2 = transmitting swing
     double swingStartTime = 0.0;
 
     struct DataPoint *dps = NULL;
     int dpnum = 0;
+
+    int mode = -1;
+    float thresh = 100.0; //m/s/s (should not remain this value)
     
     while(1)
     {
@@ -278,26 +286,17 @@ void app_main() {
 
         if(get_start())
         {
-            mode_LED(get_mode());
-            /*
-            if(get_mode() == 1)
-            {
-                set_LED(MAGENTA); //backhand
-            }
-            else if(get_mode() == 2)
-            {
-                set_LED(CYAN); //forehand
-            }
-            else if(get_mode() == 3)
-            {
-                set_LED(GREEN); //serve
-            }*/
+            mode = get_mode();
+            mode_LED(mode);
+            thresh = set_thresh(mode);
             
             while (get_end_of_session() == 0) 
             {
                 i2c_master_read_from_device(I2C_NUM_0, I2C_SLAVE_ADDR, rx_data, 23, TIMEOUT_MS/portTICK_RATE_MS);
+
+                //printf("Here\n");
                 
-                if(rx_data[9] == 0x04) //Linear Acceleration
+                if((swingState == 0 || swingState == 1) && rx_data[9] == 0x04) //Linear Acceleration
                 {
                     gotLinAccel = 1;
                     // uint8_t q = 8;
@@ -315,10 +314,10 @@ void app_main() {
                     linaccel.y = y;
                     linaccel.z = z;
 
-                    if(inSwing == 0 && getMagnitude(x, y, z) > ACCEL_THRESHOLD) //Start of Swing Detected
+                    if(swingState == 0 && getMagnitude(x, y, z) > thresh) //Start of Swing Detected
                     {
                         set_LED(YELLOW);
-                        inSwing = 1;
+                        swingState = 1;
                         gotGravity = 0;
                         gotQuaternions = 0;
                         swingNum++;
@@ -332,7 +331,7 @@ void app_main() {
                         dps = (struct DataPoint *) malloc(sizeof(struct DataPoint) * 50);
                     }
                 }
-                else if(inSwing == 1 && rx_data[9] == 0x06) //Gravity
+                else if(swingState == 1 && rx_data[9] == 0x06) //Gravity
                 {
                     gotGravity = 1;
 
@@ -352,7 +351,7 @@ void app_main() {
                     grav.z = z;
 
                 }
-                else if(inSwing == 1 && rx_data[9] == 0x05) //Quaternion
+                else if(swingState == 1 && rx_data[9] == 0x05) //Quaternion
                 {
                     gotQuaternions = 1;
 
@@ -376,7 +375,7 @@ void app_main() {
                     quat.k = k;
                 }
 
-                if(gotQuaternions && gotLinAccel && gotGravity)
+                if(swingState == 1 && gotQuaternions && gotLinAccel && gotGravity)
                 {
                     gotLinAccel = 0;
                     gotGravity = 0;
@@ -391,7 +390,7 @@ void app_main() {
                     
                     //printDP(dp);
 
-                    if(inSwing == 1)
+                    if(swingState == 1)
                     {
                         dps[dpnum] = dp;
                         dpnum++;
@@ -402,17 +401,32 @@ void app_main() {
                 }
                 
                 timer_get_counter_time_sec(TIMER_GROUP_0, TIMER_0, &timerSec);
-                if(inSwing == 1 && timerSec- swingStartTime > 0.4) //END Swing 
+                if(swingState == 1 && timerSec - swingStartTime > SWING_TIME) //END Swing 
                 {
-                    inSwing = 0;
-                    mode_LED(get_mode());
-                    
+                    swingState = 2;                    
 
                     //fakeReckoning(dps, dpnum);
                     deadReckoning(dps, dpnum); //store in outputdatapoints
 
                     free(dps);
                     dpnum = 0; 
+                }
+                else if(swingState == 2)
+                {
+                    if(timerSec > SWING_TIME + TRANSMIT_TIME) //ready to accept next swing
+                    {
+                        swingState = 0;
+                        mode_LED(get_mode());
+                    }
+                    else
+                    {
+                        vTaskDelay(DELAY_MS/portTICK_RATE_MS);
+                    }
+                }
+                else if(swingState == 0 && timerSec == 5.0)
+                {
+                    printf("ERROR REACHED");
+                    set_LED(WHITE);
                 }
             }
         }
@@ -478,8 +492,8 @@ void fakeReckoning(struct DataPoint *dps, int numDPs)
         impactTime = -1.0;
     }
 
-    printf("Buffer Filled: %d Data Points\n", numDPs);
-    print_buffer(outputData, numDPs);
+    //printf("Buffer Filled: %d Data Points\n", numDPs);
+    //print_buffer(outputData, numDPs);
 
     set_transmit_buffer(outputData, numDPs, impactTime, contactSpeed);
 
@@ -501,13 +515,15 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     float maxDiff = 0;
     float currDiff = 0;
     float impactTime = 0.0;
+    float impactSpeed = 0.0;
+    float velmag = 0.0;
 
     for(int i = 0; i < numDPs; i++)
     {
         //Call Dead Reckoning on Each Point
         if(i > 0)
         {
-            pointReckoning(dps[i]);
+            velmag = pointReckoning(dps[i]);
         }
         else
         {
@@ -530,6 +546,7 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
             {
                 maxDiff = currDiff;
                 impactTime = dps[i].time;
+                impactSpeed = velmag;
             }
         }
     }
@@ -537,22 +554,24 @@ void deadReckoning(struct DataPoint *dps, int numDPs)
     if(maxDiff < IMPACT_THRESH)
     {
         impactTime = -1.0;
+        impactSpeed = -1.0;
     }
 
-    printf("Buffer Filled: %d Data Points\n", numDPs);
-    print_buffer(outputData, numDPs);
-    set_transmit_buffer(outputData, numDPs, impactTime);
+    //printf("Buffer Filled: %d Data Points\n", numDPs);
+    //print_buffer(outputData, numDPs);
+    set_transmit_buffer(outputData, numDPs, impactTime, impactSpeed);
 
     free(outputData);
 }
 
-void pointReckoning(struct DataPoint dp)
+float pointReckoning(struct DataPoint dp)
 {
     ConvertQuaternionToRotationMatrix(dp.quat);
     struct Coordinates correctedAccel = ConvertLocalToGlobalCoords(dp.linaccel);
     globalTimeSinceLastPoint = dp.time - globalLastTime;
     globalLastTime = dp.time;
-    UpdatePosition(correctedAccel);
+    float velmag = UpdatePosition(correctedAccel);
+    return velmag;
 }
 
 //Initialize Global Swing Values on first Data Point
@@ -568,4 +587,27 @@ void firstPointReckoning(double t)
 
     globalLastTime = t;
     globalTimeSinceLastPoint = t;
+}
+
+float set_thresh(int mode)
+{
+    float thresh;
+    if(mode == 1)
+    {
+        thresh = BACKHAND_THRESHOLD; //backhand
+    }
+    else if(mode == 2)
+    {
+        thresh = FOREHAND_THRESHOLD; //forehand
+    }
+    else if(mode == 3)
+    {
+        thresh = SERVE_THRESHOLD; //serve
+    }
+    else
+    {
+        thresh = -1.0; //UNDEFINED MODE
+    }
+
+    return thresh;
 }

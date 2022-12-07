@@ -17,7 +17,7 @@ void CorrectAccel(struct Coordinates accel, struct Coordinates grav)
     accel.z -= grav.z;
 }
 
-void UpdatePosition(struct Coordinates correctedAccel)
+float UpdatePosition(struct Coordinates correctedAccel)
 {
     double accelTermX, accelTermY, accelTermZ;
 
@@ -67,6 +67,10 @@ void UpdatePosition(struct Coordinates correctedAccel)
     globalPosition.x += (globalVelocity.x * globalTimeSinceLastPoint + accelTermX);
     globalPosition.y += (globalVelocity.y * globalTimeSinceLastPoint + accelTermY);
     globalPosition.z += (globalVelocity.z * globalTimeSinceLastPoint + accelTermZ);
+
+
+    float velmag = sqrt(globalVelocity.x * globalVelocity.x + globalVelocity.y * globalVelocity.y + globalVelocity.z * globalVelocity.z); 
+    return velmag;
 }
 
 
